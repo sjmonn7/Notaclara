@@ -12,27 +12,6 @@ from db import db
 from main import leer_numero, porcentaje_disponible
 from models import Asignatura, Evaluacion, crear_tablas
 
-# ---------- Inicialización Automática de SQLite ----------
-try:
-    # Conecta y crea las tablas si el archivo .db no existe
-    db.connect()
-    crear_tablas()
-    
-    # Carga las asignaturas por defecto de INACAP si la base de datos está nueva
-    if Asignatura.select().count() == 0:
-        asignaturas_iniciales = [
-            'Funciones y Matrices',
-            'Programación Orientada a Objetos',
-            'Bases de Datos Estructuradas',
-            'Administración',
-            'Modelamiento de Soluciones Informáticas',
-            'Metodología de Desarrollo Ágil'
-        ]
-        for nombre in asignaturas_iniciales:
-            Asignatura.create(nombre=nombre)
-except Exception as e:
-    print(f"Nota: La base de datos ya estaba inicializada o hubo un aviso: {e}")
-# ---------------------------------------------------------
 
 COLORES = {"verde": "#2fa572", "amarillo": "#e0a526", "rojo": "#e05252"}
 COLOR_TARJETA = "#2b2b2b"
@@ -150,23 +129,46 @@ class App(ctk.CTk):
 
     # ----- Barra lateral -----
 
+        # ----- Barra lateral -----
+
     def crear_barra_lateral(self):
         barra = ctk.CTkFrame(self, width=260, corner_radius=0)
         barra.grid(row=0, column=0, sticky="nsew")
         barra.grid_propagate(False)
+        self.barra_lateral = barra  # Guardamos la referencia
 
         ctk.CTkLabel(barra, text="NotaClara", font=ctk.CTkFont(size=26, weight="bold")).pack(pady=(28, 0))
-        ctk.CTkLabel(barra, text="Calculadora de notas INACAP", text_color="gray").pack(pady=(0, 24))
+        ctk.CTkLabel(barra, text="Calculadora de Notas", text_color="gray").pack(pady=(0, 24))
 
         self.boton_resumen = ctk.CTkButton(barra, text="¿Cuánto necesito?", height=38, command=self.mostrar_resumen)
         self.boton_resumen.pack(fill="x", padx=16, pady=(0, 20))
 
-        ctk.CTkLabel(barra, text="ASIGNATURAS", text_color="gray", font=ctk.CTkFont(size=12, weight="bold")).pack(
-            anchor="w", padx=20
-        )
+        # Contenedor para el título y el botón añadir
+        cabecera_ramos = ctk.CTkFrame(barra, fg_color="transparent")
+        cabecera_ramos.pack(fill="x", padx=16, pady=(0, 10))
+
+        ctk.CTkLabel(cabecera_ramos, text="ASIGNATURAS", text_color="gray", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+        
+        # Botón "+" para agregar ramos personalizados
+        boton_add = ctk.CTkButton(cabecera_ramos, text="+", width=28, height=24, font=ctk.CTkFont(size=16, weight="bold"), command=self.solicitar_nueva_asignatura)
+        boton_add.pack(side="right")
+
+        # Contenedor dinámico para los botones de las asignaturas
+        self.contenedor_botones = ctk.CTkFrame(barra, fg_color="transparent")
+        self.contenedor_botones.pack(fill="both", expand=True)
+
+        self.actualizar_lista_barra_lateral()
+
+    def actualizar_lista_barra_lateral(self):
+        """Limpia y vuelve a dibujar los botones de los ramos de la base de datos."""
+        for widget in self.contenedor_botones.winfo_children():
+            widget.destroy()
+
+        self.botones_asignaturas.clear()
+
         for asignatura in Asignatura.select().order_by(Asignatura.id):
             boton = ctk.CTkButton(
-                barra,
+                self.contenedor_botones,
                 text=asignatura.nombre,
                 anchor="w",
                 height=36,
@@ -177,6 +179,36 @@ class App(ctk.CTk):
             )
             boton.pack(fill="x", padx=10, pady=2)
             self.botones_asignaturas[asignatura.id] = boton
+        if not self.botones_asignaturas:
+            ctk.CTkLabel(
+                self.contenedor_botones,
+                text="Aún no tienes asignaturas.\nPulsa + para agregar la primera.",
+                text_color="gray",
+                justify="left",
+            ).pack(anchor="w", padx=16, pady=8)
+
+
+    def solicitar_nueva_asignatura(self):
+        """Muestra un cuadro de diálogo para ingresar un ramo nuevo."""
+        dialogo = ctk.CTkInputDialog(text="Ingresa el nombre de la nueva asignatura:", title="Nueva Asignatura")
+        nombre_ramo = dialogo.get_input()
+
+        if nombre_ramo is not None:
+            nombre_ramo = nombre_ramo.strip()
+            if nombre_ramo == "":
+                messagebox.showwarning("NotaClara", "El nombre de la asignatura no puede quedar vacío.")
+                return
+            
+            try:
+                # Guardar en SQLite
+                Asignatura.create(nombre=nombre_ramo)
+                # Refrescar el panel lateral y el resumen general
+                self.actualizar_lista_barra_lateral()
+                self.mostrar_resumen()
+            except Exception as e:
+                messagebox.showerror("NotaClara", f"No se pudo guardar la asignatura. Quizás ya existe.\nError: {e}")
+
+
 
     def marcar_boton(self, asignatura_id):
         """Resalta en la barra lateral la asignatura abierta."""
@@ -417,7 +449,7 @@ class App(ctk.CTk):
     def mostrar_error_inesperado(self, tipo, error, traza):
         """Muestra los errores en una ventana en vez de una traza en la consola."""
         if isinstance(error, OperationalError):
-            messagebox.showerror("NotaClara", "Se perdió la conexión con MySQL. Revisa que WAMP esté encendido.")
+            messagebox.showerror("NotaClara", "No se pudo acceder a la base de datos.")
         else:
             messagebox.showerror("NotaClara", f"Ocurrió un error inesperado:\n{error}")
 
@@ -427,13 +459,14 @@ def main():
 
     try:
         db.connect()
-        crear_tablas()
+        crear_tablas() # Esto ahora solo creará las tablas vacías gracias al Paso 1
     except Exception as e:
         print(f"Aviso de base de datos: {e}")
 
     app = App()
     app.mainloop()
     db.close()
+
 
 
 if __name__ == "__main__":

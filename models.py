@@ -39,9 +39,6 @@ class Evaluacion(ModeloBase):
     porcentaje = DecimalField(max_digits=5, decimal_places=2)  # de 0 a 100
     nota = DecimalField(max_digits=2, decimal_places=1, null=True)  # vacía si está pendiente
 
-
 def crear_tablas():
-    """Crea las tablas (si no existen) y carga las asignaturas."""
+    """Crea las tablas vacías (si no existen) para que el usuario empiece de cero."""
     db.create_tables([Asignatura, Evaluacion])
-    for nombre in ASIGNATURAS:
-        Asignatura.get_or_create(nombre=nombre)
