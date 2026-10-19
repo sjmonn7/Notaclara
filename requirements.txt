@@ -2,3 +2,4 @@ peewee
 pymysql
 prettytable
 python-dotenv
+customtkinter

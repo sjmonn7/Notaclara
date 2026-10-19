@@ -60,9 +60,19 @@ python crear_bd.py
 
 ## Ejecutar
 
+Versión gráfica (customtkinter):
+
+```bash
+python interfaz.py
+```
+
+Versión de terminal:
+
 ```bash
 python main.py
 ```
+
+Las dos versiones usan la misma base de datos, así que lo que se guarda en una aparece en la otra.
 
 ## Pruebas
 
@@ -74,7 +84,8 @@ python -m unittest test_calculos
 
 | Archivo | Para qué sirve |
 |---|---|
-| `main.py` | Menú principal y lectura de datos |
+| `interfaz.py` | Versión gráfica con customtkinter |
+| `main.py` | Versión de terminal: menú principal y lectura de datos |
 | `config.py` | Lee las credenciales desde `.env` |
 | `db.py` | Conexión a MySQL |
 | `models.py` | Tablas `Asignatura` y `Evaluacion` |
