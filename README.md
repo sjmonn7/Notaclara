@@ -94,3 +94,25 @@ python -m unittest test_calculos
 | `crear_bd.sql` | Script SQL que crea la base de datos |
 | `crear_bd.py` | Crea la base de datos desde Python |
 | `test_calculos.py` | Pruebas de los cálculos |
+
+
+
+
+## 🚀 Versión Portable (Rama SQLite)
+
+Esta rama (`sqlite-version`) contiene una adaptación **100% portable y autónoma** del proyecto, ideal para demostraciones rápidas o para compartir con compañeros y profesores sin complicaciones técnicas.
+
+### Ventajas de esta versión:
+- **Sin Servidores Externos:** No requiere tener encendido MySQL, XAMPP, WAMP ni herramientas similares.
+- **Sin Configuraciones Manuales:** No necesitas clonar ni rellenar archivos `.env` con credenciales locales.
+- **Base de Datos Autogestionada:** Utiliza **SQLite** (integrado nativamente en Python). La base de datos (`notaclara.db`) se crea y carga de forma completamente automática con las asignaturas de INACAP en el primer segundo en que abres la aplicación.
+
+### Cómo ejecutar en esta rama:
+Asegúrate de tener tu entorno virtual activo e instala la librería visual necesaria para Linux/Windows:
+
+```bash
+pip install -r requirements.txt
+python interfaz.py
+```
+
+*Nota: En distribuciones basadas en Ubuntu/Linux Mint, si la interfaz gráfica no abre por falta de componentes del sistema, puedes solucionar la dependencia ejecutando `sudo apt install python3-tk -y` en tu terminal.*
