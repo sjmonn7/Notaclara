@@ -1,8 +1,6 @@
-# Modelos de la base de datos
+# Modelos de la base de datos adaptados para SQLite
 from decimal import Decimal
-
 from peewee import CharField, DecimalField, ForeignKeyField, Model
-
 from db import db
 
 # Asignaturas que se cargan automáticamente en la base de datos
@@ -19,8 +17,7 @@ ASIGNATURAS = [
 class ModeloBase(Model):
     class Meta:
         database = db
-        # InnoDB es necesario para que funcionen las claves foráneas (ON DELETE CASCADE)
-        table_settings = ["ENGINE=InnoDB"]
+        # Se removió ENGINE=InnoDB ya que SQLite maneja claves foráneas automáticamente
 
 
 class Asignatura(ModeloBase):

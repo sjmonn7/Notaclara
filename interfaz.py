@@ -12,6 +12,28 @@ from db import db
 from main import leer_numero, porcentaje_disponible
 from models import Asignatura, Evaluacion, crear_tablas
 
+# ---------- Inicialización Automática de SQLite ----------
+try:
+    # Conecta y crea las tablas si el archivo .db no existe
+    db.connect()
+    crear_tablas()
+    
+    # Carga las asignaturas por defecto de INACAP si la base de datos está nueva
+    if Asignatura.select().count() == 0:
+        asignaturas_iniciales = [
+            'Funciones y Matrices',
+            'Programación Orientada a Objetos',
+            'Bases de Datos Estructuradas',
+            'Administración',
+            'Modelamiento de Soluciones Informáticas',
+            'Metodología de Desarrollo Ágil'
+        ]
+        for nombre in asignaturas_iniciales:
+            Asignatura.create(nombre=nombre)
+except Exception as e:
+    print(f"Nota: La base de datos ya estaba inicializada o hubo un aviso: {e}")
+# ---------------------------------------------------------
+
 COLORES = {"verde": "#2fa572", "amarillo": "#e0a526", "rojo": "#e05252"}
 COLOR_TARJETA = "#2b2b2b"
 COLOR_SELECCION = "#1f538d"
@@ -399,23 +421,15 @@ class App(ctk.CTk):
         else:
             messagebox.showerror("NotaClara", f"Ocurrió un error inesperado:\n{error}")
 
-
 def main():
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
+
     try:
         db.connect()
         crear_tablas()
-    except OperationalError:
-        ventana = tk.Tk()
-        ventana.withdraw()
-        messagebox.showerror(
-            "NotaClara",
-            "No se pudo conectar a MySQL.\n\nRevisa que WAMP esté encendido, que exista la base de datos "
-            "(crear_bd.sql) y que los datos del archivo .env sean correctos.",
-        )
-        ventana.destroy()
-        return
+    except Exception as e:
+        print(f"Aviso de base de datos: {e}")
 
     app = App()
     app.mainloop()
