@@ -1,0 +1,4 @@
+peewee
+pymysql
+prettytable
+python-dotenv
