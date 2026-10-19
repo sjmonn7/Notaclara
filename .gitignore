@@ -4,3 +4,10 @@ venv/
 .env
 venv/
 __pycache__/
+notaclara.db
+venv/
+build/
+dist/
+__pycache__/
+*.spec
+.env

@@ -135,7 +135,7 @@ class App(ctk.CTk):
         barra = ctk.CTkFrame(self, width=260, corner_radius=0)
         barra.grid(row=0, column=0, sticky="nsew")
         barra.grid_propagate(False)
-        self.barra_lateral = barra  # Guardamos la referencia
+        self.barra_lateral = barra
 
         ctk.CTkLabel(barra, text="NotaClara", font=ctk.CTkFont(size=26, weight="bold")).pack(pady=(28, 0))
         ctk.CTkLabel(barra, text="Calculadora de Notas", text_color="gray").pack(pady=(0, 24))
@@ -143,17 +143,25 @@ class App(ctk.CTk):
         self.boton_resumen = ctk.CTkButton(barra, text="¿Cuánto necesito?", height=38, command=self.mostrar_resumen)
         self.boton_resumen.pack(fill="x", padx=16, pady=(0, 20))
 
-        # Contenedor para el título y el botón añadir
         cabecera_ramos = ctk.CTkFrame(barra, fg_color="transparent")
         cabecera_ramos.pack(fill="x", padx=16, pady=(0, 10))
 
-        ctk.CTkLabel(cabecera_ramos, text="ASIGNATURAS", text_color="gray", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
-        
-        # Botón "+" para agregar ramos personalizados
-        boton_add = ctk.CTkButton(cabecera_ramos, text="+", width=28, height=24, font=ctk.CTkFont(size=16, weight="bold"), command=self.solicitar_nueva_asignatura)
+        ctk.CTkLabel(
+            cabecera_ramos, text="ASIGNATURAS", text_color="gray", font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(side="left")
+
+        boton_add = ctk.CTkButton(
+            cabecera_ramos, text="+", width=28, height=24, font=ctk.CTkFont(size=16, weight="bold"),
+            command=self.solicitar_nueva_asignatura,
+        )
         boton_add.pack(side="right")
 
-        # Contenedor dinámico para los botones de las asignaturas
+        # Botón fijo abajo (va ANTES del contenedor para que se reserve su espacio)
+        ctk.CTkButton(
+            barra, text="Ver archivadas", height=30, fg_color="transparent", border_width=1,
+            text_color=("gray10", "gray90"), command=self.mostrar_archivadas,
+        ).pack(side="bottom", fill="x", padx=16, pady=16)
+
         self.contenedor_botones = ctk.CTkFrame(barra, fg_color="transparent")
         self.contenedor_botones.pack(fill="both", expand=True)
 
@@ -166,7 +174,7 @@ class App(ctk.CTk):
 
         self.botones_asignaturas.clear()
 
-        for asignatura in Asignatura.select().order_by(Asignatura.id):
+        for asignatura in Asignatura.select().where(Asignatura.activa).order_by(Asignatura.id):
             boton = ctk.CTkButton(
                 self.contenedor_botones,
                 text=asignatura.nombre,
@@ -198,17 +206,71 @@ class App(ctk.CTk):
             if nombre_ramo == "":
                 messagebox.showwarning("NotaClara", "El nombre de la asignatura no puede quedar vacío.")
                 return
-            
+
             try:
-                # Guardar en SQLite
                 Asignatura.create(nombre=nombre_ramo)
-                # Refrescar el panel lateral y el resumen general
                 self.actualizar_lista_barra_lateral()
                 self.mostrar_resumen()
             except Exception as e:
                 messagebox.showerror("NotaClara", f"No se pudo guardar la asignatura. Quizás ya existe.\nError: {e}")
 
+    def renombrar_asignatura(self):
+        dialogo = ctk.CTkInputDialog(title="Renombrar", text="Nuevo nombre de la asignatura:")
+        nombre = dialogo.get_input()
+        if nombre is None:
+            return
+        nombre = nombre.strip()
+        if not nombre:
+            messagebox.showwarning("NotaClara", "El nombre no puede quedar vacío.")
+            return
+        try:
+            self.asignatura.nombre = nombre
+            self.asignatura.save()
+        except Exception:
+            self.asignatura = Asignatura.get_by_id(self.asignatura.id)
+            messagebox.showerror(
+                "NotaClara",
+                "No se pudo renombrar. Quizás ya existe una asignatura con ese nombre (revisa también las archivadas).",
+            )
+            return
+        self.actualizar_lista_barra_lateral()
+        self.abrir_asignatura(self.asignatura)
 
+    def archivar_asignatura(self):
+        if messagebox.askyesno(
+            "NotaClara",
+            f"¿Archivar '{self.asignatura.nombre}'?\nDeja de mostrarse, pero sus notas se conservan y puedes restaurarla.",
+        ):
+            self.asignatura.activa = False
+            self.asignatura.save()
+            self.actualizar_lista_barra_lateral()
+            self.mostrar_resumen()
+
+    def mostrar_archivadas(self):
+        archivadas = list(Asignatura.select().where(~Asignatura.activa).order_by(Asignatura.id))
+        if not archivadas:
+            messagebox.showinfo("NotaClara", "No tienes asignaturas archivadas.")
+            return
+        ventana = ctk.CTkToplevel(self)
+        ventana.title("Asignaturas archivadas")
+        ventana.geometry("380x400")
+        ventana.transient(self)
+        ventana.after(100, ventana.lift)
+        for asignatura in archivadas:
+            fila = ctk.CTkFrame(ventana, fg_color="transparent")
+            fila.pack(fill="x", padx=12, pady=4)
+            ctk.CTkLabel(fila, text=asignatura.nombre).pack(side="left")
+            ctk.CTkButton(
+                fila, text="Restaurar", width=90,
+                command=lambda a=asignatura, v=ventana: self.restaurar_asignatura(a, v),
+            ).pack(side="right")
+
+    def restaurar_asignatura(self, asignatura, ventana):
+        asignatura.activa = True
+        asignatura.save()
+        ventana.destroy()
+        self.actualizar_lista_barra_lateral()
+        self.mostrar_resumen()
 
     def marcar_boton(self, asignatura_id):
         """Resalta en la barra lateral la asignatura abierta."""
@@ -223,8 +285,17 @@ class App(ctk.CTk):
         panel.grid_rowconfigure(2, weight=1)
         self.panel_asignatura = panel
 
-        self.titulo = ctk.CTkLabel(panel, text="", font=ctk.CTkFont(size=24, weight="bold"))
-        self.titulo.grid(row=0, column=0, sticky="w", pady=(0, 16))
+        cabecera = ctk.CTkFrame(panel, fg_color="transparent")
+        cabecera.grid(row=0, column=0, sticky="ew", pady=(0, 16))
+        self.titulo = ctk.CTkLabel(cabecera, text="", font=ctk.CTkFont(size=24, weight="bold"))
+        self.titulo.pack(side="left")
+        ctk.CTkButton(
+            cabecera, text="Archivar", width=100, fg_color="#6b6b6b", hover_color="#505050",
+            command=self.archivar_asignatura,
+        ).pack(side="right")
+        ctk.CTkButton(cabecera, text="Renombrar", width=100, command=self.renombrar_asignatura).pack(
+            side="right", padx=(0, 8)
+        )
 
         self.crear_tarjetas(panel)
         self.crear_tabla_evaluaciones(panel)
@@ -334,7 +405,7 @@ class App(ctk.CTk):
         self.mostrar_panel(self.panel_resumen)
         self.tabla_resumen.delete(*self.tabla_resumen.get_children())
 
-        for asignatura in Asignatura.select().order_by(Asignatura.id):
+        for asignatura in Asignatura.select().where(Asignatura.activa).order_by(Asignatura.id):
             notas = asignatura.notas()
             acumulada = calculos.nota_acumulada(notas)
             evaluado = calculos.porcentaje_evaluado(notas)
