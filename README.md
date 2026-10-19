@@ -116,3 +116,10 @@ python interfaz.py
 ```
 
 *Nota: En distribuciones basadas en Ubuntu/Linux Mint, si la interfaz gráfica no abre por falta de componentes del sistema, puedes solucionar la dependencia ejecutando `sudo apt install python3-tk -y` en tu terminal.*
+
+### 📦 Descargar Versión Ejecutable (Doble Clic)
+Si no deseas usar la terminal ni instalar Python, puedes descargar el archivo ejecutable listo para usar:
+1. Entra a la carpeta `dist/` en esta rama.
+2. Descarga el archivo ejecutable llamado `interfaz`.
+3. Dale permisos de ejecución en tu Linux (Clic derecho -> Propiedades -> Permisos -> Permitir ejecutar como un programa, o mediante terminal con `chmod +x interfaz`).
+4. ¡Haz **doble clic** y listo! El programa creará su propia base de datos local automáticamente.
