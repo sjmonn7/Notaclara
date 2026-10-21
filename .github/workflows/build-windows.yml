@@ -1,0 +1,43 @@
+name: Build Windows executable
+
+on:
+  push:
+    branches:
+      - sqlite-version
+    paths:
+      - ".github/workflows/build-windows.yml"
+      - "*.py"
+      - "*.spec"
+      - "requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: sqlite-version
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pyinstaller
+
+      - name: Build executable
+        run: pyinstaller --clean --noconfirm NotaClara.spec
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: NotaClara-Windows
+          path: dist/NotaClara.exe
+          if-no-files-found: error
