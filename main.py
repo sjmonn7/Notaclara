@@ -91,9 +91,8 @@ def elegir_evaluacion(asignatura):
 
 
 def porcentaje_disponible(asignatura):
-    """Cuánto porcentaje queda por asignar para no pasar del 100 %."""
     usado = sum(float(evaluacion.porcentaje) for evaluacion in asignatura.evaluaciones)
-    return 100 - usado
+    return round(100 - usado, 2)
 
 
 def agregar_evaluacion(asignatura):
@@ -184,9 +183,7 @@ def main():
         crear_tablas()
         menu_principal()
     except OperationalError:
-        print("\nNo se pudo conectar a MySQL.")
-        print("Revisa que MySQL (WAMP) esté encendido, que exista la base de datos")
-        print("(python crear_bd.py) y que los datos del archivo .env sean correctos.")
+        print("\nNo se pudo acceder a la base de datos.")
     except (KeyboardInterrupt, EOFError):
         print("\n¡Hasta luego!")
     finally:
