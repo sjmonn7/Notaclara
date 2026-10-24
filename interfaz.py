@@ -1,5 +1,5 @@
 # NotaClara con interfaz gráfica (customtkinter).
-# Usa los mismos modelos y cálculos que la versión de terminal (main.py).
+# Usa los modelos y cálculos del proyecto (models.py, calculos.py).
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -9,7 +9,7 @@ from peewee import OperationalError
 import calculos
 import vistas
 from db import db
-from main import leer_numero, porcentaje_disponible
+from utiles import leer_numero, porcentaje_disponible
 from models import Asignatura, Evaluacion, crear_tablas
 
 
