@@ -1,14 +1,8 @@
 .env
-__pycache__/
-venv/
-.env
 venv/
 __pycache__/
+.pytest_cache/
 notaclara.db
-venv/
 build/
 dist/
-__pycache__/
-*.spec
-.env
-.pytest_cache/
+.vscode/
