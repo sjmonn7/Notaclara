@@ -11,21 +11,30 @@ Proyecto universitario de Simon Masías y Fabián Rojas.
 - **Cálculos automáticos:** calcula tu nota acumulada actual y te dice exactamente **cuánto necesitas obtener en las evaluaciones restantes** para aprobar con nota 4,0.
 
 ## 📦 Cómo usar (sin instalar nada)
-El ejecutable disponible hoy es para **Linux**.
+Descarga el archivo para tu sistema desde la sección **[Releases](../../releases)** de este repositorio.
 
-1. Entra a la sección **[Releases](../../releases)** de este repositorio.
-2. Descarga el archivo `NotaClara`.
-3. Dale permisos de ejecución:
+### Windows
+1. Descarga `NotaClara.exe`.
+2. Haz doble clic y la aplicación se abrirá.
+
+### Linux
+1. Descarga `NotaClara-Linux`.
+2. Dale permisos de ejecución:
    - *De forma visual:* clic derecho sobre el archivo → **Propiedades** → pestaña **Permisos** → marca **"Permitir ejecutar el archivo como un programa"**.
-   - *O por terminal:* `chmod +x NotaClara`.
-4. Haz **doble clic** sobre el archivo y la aplicación se abrirá.
+   - *O por terminal:* `chmod +x NotaClara-Linux`.
+3. Haz doble clic sobre el archivo (o ejecútalo con `./NotaClara-Linux`).
 
-*Tus datos se guardan automáticamente en `~/.notaclara/notaclara.db` (en tu carpeta personal). Si quieres empezar de cero, borra esa carpeta.*
+### Dónde se guardan tus datos
+La base de datos se crea sola la primera vez y queda en tu carpeta personal:
+- **Windows:** `C:\Users\<tu usuario>\.notaclara\notaclara.db`
+- **Linux:** `~/.notaclara/notaclara.db`
+
+Si quieres empezar de cero, borra esa carpeta. Para hacer un respaldo, copia el archivo `notaclara.db`.
 
 ---
 
 ## 🛠️ Desarrollo e instalación (opcional)
-Si quieres ejecutar el código fuente en Python (por ejemplo, en Windows o macOS), clona esta rama y activa un entorno virtual:
+Si quieres ejecutar el código fuente en Python, clona esta rama y activa un entorno virtual:
 
 ```bash
 git clone -b sqlite-version https://github.com/sjmonn7/Notaclara.git
@@ -35,6 +44,13 @@ source venv/bin/activate        # En Windows: venv\Scripts\activate
 
 pip install -r requirements.txt
 python interfaz.py
+```
+
+Para correr las pruebas del cálculo de notas:
+
+```bash
+pip install pytest
+python -m pytest test_calculos.py
 ```
 
 *Si usas Linux Mint / Ubuntu y la interfaz no abre por falta de componentes gráficos, instala: `sudo apt install python3-tk -y`.*
