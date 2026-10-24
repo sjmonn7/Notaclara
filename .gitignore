@@ -1,6 +1,8 @@
 .env
-__pycache__/
-venv/
-.env
 venv/
 __pycache__/
+.pytest_cache/
+notaclara.db
+build/
+dist/
+.vscode/

@@ -1,96 +1,56 @@
-# NotaClara
+# NotaClara (Versión Portable 🚀)
 
-Calculadora de notas para estudiantes de INACAP. Funciona en la terminal y guarda los datos en MySQL.
+Calculadora de notas y promedios para estudiantes de INACAP. Esta rama (`sqlite-version`) contiene una adaptación **100% autónoma y portable**, diseñada para ejecutarse con un solo clic sin necesidad de configuraciones técnicas complicadas.
 
 Proyecto universitario de Simon Masías y Fabián Rojas.
 
-## Qué hace
+## 🌟 Qué hace el programa
+- **Tus propias asignaturas:** la app parte vacía. Agrega tus ramos con el botón **+**, anota cada evaluación con su porcentaje y su nota, y todo queda guardado para la próxima vez.
+- **Archivar y renombrar:** corrige nombres o archiva ramos de semestres anteriores sin perder sus notas; los restauras desde "Ver archivadas".
+- **Gestión de evaluaciones:** registra tus notas (de 1,0 a 7,0) junto con su porcentaje de ponderación.
+- **Cálculos automáticos:** calcula tu nota acumulada actual y te dice exactamente **cuánto necesitas obtener en las evaluaciones restantes** para aprobar con nota 4,0.
 
-- Registra las evaluaciones de cada asignatura con su porcentaje y nota (de 1,0 a 7,0).
-- Calcula el aporte de cada evaluación: `nota × porcentaje`.
-- Calcula la nota acumulada: `Σ (nota × porcentaje)`.
-- Calcula la nota mínima necesaria para aprobar con 4,0: `(4,0 − acumulada) ÷ porcentaje pendiente`.
+## 📦 Cómo usar (sin instalar nada)
+Descarga el archivo para tu sistema desde la sección **[Releases](../../releases)** de este repositorio.
 
-Las asignaturas vienen cargadas:
+### Windows
+1. Descarga `NotaClara.exe`.
+2. Haz doble clic y la aplicación se abrirá.
 
-- Funciones y Matrices
-- Programación Orientada a Objetos
-- Bases de Datos Estructuradas
-- Administración
-- Modelamiento de Soluciones Informáticas
-- Metodología de Desarrollo Ágil
+### Linux
+1. Descarga `NotaClara-Linux`.
+2. Dale permisos de ejecución:
+   - *De forma visual:* clic derecho sobre el archivo → **Propiedades** → pestaña **Permisos** → marca **"Permitir ejecutar el archivo como un programa"**.
+   - *O por terminal:* `chmod +x NotaClara-Linux`.
+3. Haz doble clic sobre el archivo (o ejecútalo con `./NotaClara-Linux`).
 
-## Instalación
+### Dónde se guardan tus datos
+La base de datos se crea sola la primera vez y queda en tu carpeta personal:
+- **Windows:** `C:\Users\<tu usuario>\.notaclara\notaclara.db`
+- **Linux:** `~/.notaclara/notaclara.db`
 
-Requisitos: Python 3 y MySQL encendido (por ejemplo con WAMP o XAMPP).
+Si quieres empezar de cero, borra esa carpeta. Para hacer un respaldo, copia el archivo `notaclara.db`.
+
+---
+
+## 🛠️ Desarrollo e instalación (opcional)
+Si quieres ejecutar el código fuente en Python, clona esta rama y activa un entorno virtual:
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
+git clone -b sqlite-version https://github.com/sjmonn7/Notaclara.git
+cd Notaclara
+python3 -m venv venv
+source venv/bin/activate        # En Windows: venv\Scripts\activate
+
 pip install -r requirements.txt
-```
-
-## Configurar el archivo .env
-
-Copia `.env.example` a `.env` y completa los datos de tu MySQL:
-
-```bash
-copy .env.example .env
-```
-
-Con WAMP o XAMPP normalmente el usuario es `root` y la contraseña va vacía.
-
-## Crear la base de datos
-
-El script [crear_bd.sql](crear_bd.sql) crea la base de datos `notaclara`, las tablas y las asignaturas. Se puede ejecutar de cualquiera de estas formas:
-
-**Con phpMyAdmin** (http://localhost/phpmyadmin): pestaña **Importar** → elegir `crear_bd.sql` → **Importar**.
-
-**Con la consola de MySQL:**
-
-```bash
-mysql -u root -p --default-character-set=utf8mb4 < crear_bd.sql
-```
-
-**Con Python** (hace lo mismo que el script SQL):
-
-```bash
-python crear_bd.py
-```
-
-## Ejecutar
-
-Versión gráfica (customtkinter):
-
-```bash
 python interfaz.py
 ```
 
-Versión de terminal:
+Para correr las pruebas del cálculo de notas:
 
 ```bash
-python main.py
+pip install pytest
+python -m pytest test_calculos.py
 ```
 
-Las dos versiones usan la misma base de datos, así que lo que se guarda en una aparece en la otra.
-
-## Pruebas
-
-```bash
-python -m unittest test_calculos
-```
-
-## Archivos
-
-| Archivo | Para qué sirve |
-|---|---|
-| `interfaz.py` | Versión gráfica con customtkinter |
-| `main.py` | Versión de terminal: menú principal y lectura de datos |
-| `config.py` | Lee las credenciales desde `.env` |
-| `db.py` | Conexión a MySQL |
-| `models.py` | Tablas `Asignatura` y `Evaluacion` |
-| `calculos.py` | Fórmulas de notas (no usa la base de datos) |
-| `vistas.py` | Tablas que se muestran en pantalla |
-| `crear_bd.sql` | Script SQL que crea la base de datos |
-| `crear_bd.py` | Crea la base de datos desde Python |
-| `test_calculos.py` | Pruebas de los cálculos |
+*Si usas Linux Mint / Ubuntu y la interfaz no abre por falta de componentes gráficos, instala: `sudo apt install python3-tk -y`.*

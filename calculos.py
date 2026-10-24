@@ -13,12 +13,12 @@ def aporte(nota, porcentaje):
 
 def porcentaje_evaluado(evaluaciones):
     """Suma de los porcentajes de las evaluaciones que ya tienen nota."""
-    return sum(porcentaje for nota, porcentaje in evaluaciones if nota is not None)
+    return round(sum(porcentaje for nota, porcentaje in evaluaciones if nota is not None), 2)
 
 
 def nota_acumulada(evaluaciones):
     """Suma de los aportes de las evaluaciones que ya tienen nota."""
-    return sum(aporte(nota, porcentaje) for nota, porcentaje in evaluaciones if nota is not None)
+    return round(sum(aporte(nota, porcentaje) for nota, porcentaje in evaluaciones if nota is not None), 6)
 
 
 def nota_minima(acumulada, porcentaje_pendiente, nota_aprobacion=4.0):
@@ -30,7 +30,7 @@ def nota_minima(acumulada, porcentaje_pendiente, nota_aprobacion=4.0):
 
 def estado_nota_minima(minima):
     """Interpreta la nota mínima: 'asegurada', 'imposible' o 'posible'."""
-    if minima < NOTA_MINIMA:
+    if minima <= NOTA_MINIMA:
         return "asegurada"
     if minima > NOTA_MAXIMA:
         return "imposible"

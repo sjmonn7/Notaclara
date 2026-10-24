@@ -1,13 +1,8 @@
-# Conexión a la base de datos MySQL usando peewee
-from peewee import MySQLDatabase
+from pathlib import Path
+from peewee import SqliteDatabase
 
-import config
+# La base de datos queda en la carpeta personal del usuario, siempre en el mismo lugar
+_carpeta = Path.home() / ".notaclara"
+_carpeta.mkdir(exist_ok=True)
 
-db = MySQLDatabase(
-    config.DB_NAME,
-    host=config.DB_HOST,
-    port=config.DB_PORT,
-    user=config.DB_USER,
-    password=config.DB_PASSWORD,
-    charset="utf8mb4",
-)
+db = SqliteDatabase(str(_carpeta / "notaclara.db"), pragmas={"foreign_keys": 1})
