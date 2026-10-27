@@ -1,0 +1,67 @@
+{
+  "name": "notaclara",
+  "productName": "NotaClara",
+  "version": "2.0.0",
+  "description": "Calculadora de notas para Analista Programador de INACAP",
+  "main": "src/main/main.js",
+  "author": "Simon Macías, Fabián Rojas, Natalia Sandoval, Berhane Castro",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/iniciar.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "build": "electron-builder --win nsis",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  },
+  "devDependencies": {
+    "electron": "^44.9.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "cl.inacap.notaclara",
+    "productName": "NotaClara",
+    "directories": {
+      "output": "dist",
+      "buildResources": "recursos"
+    },
+    "files": [
+      "src/**/*",
+      "recursos/icono.png",
+      "package.json",
+      "!**/node_modules/better-sqlite3/{deps,src}/**",
+      "!**/node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node",
+      "!**/node_modules/better-sqlite3/prebuilds/win32-arm64.node"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "recursos/icono.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NotaClara",
+      "artifactName": "NotaClara-Instalador-${version}.${ext}",
+      "installerLanguages": [
+        "es_ES"
+      ],
+      "language": "3082"
+    }
+  },
+  "allowScripts": {
+    "electron-winstaller": false,
+    "better-sqlite3": false
+  }
+}

@@ -1,96 +1,166 @@
 # NotaClara
 
-Calculadora de notas para estudiantes de INACAP. Funciona en la terminal y guarda los datos en MySQL.
+Calculadora de notas para estudiantes de **Analista Programador de INACAP** (4 semestres).
+Es una aplicación de escritorio para Windows hecha con Electron (HTML + CSS + JavaScript) que guarda las notas en un archivo SQLite local. Funciona 100 % sin internet.
 
-Proyecto universitario de Simon Masías y Fabián Rojas.
+**Autores:** Simon Macías, Fabián Rojas, Natalia Sandoval y Berhane Castro.
 
 ## Qué hace
 
-- Registra las evaluaciones de cada asignatura con su porcentaje y nota (de 1,0 a 7,0).
-- Calcula el aporte de cada evaluación: `nota × porcentaje`.
-- Calcula la nota acumulada: `Σ (nota × porcentaje)`.
-- Calcula la nota mínima necesaria para aprobar con 4,0: `(4,0 − acumulada) ÷ porcentaje pendiente`.
+- Trae precargados los 4 semestres de la carrera con sus asignaturas, su tipo (Práctica o Lectiva) y las ponderaciones oficiales de cada evaluación.
+- Se elige un semestre en la barra lateral, luego una asignatura, y se escriben las notas. Cada nota se **guarda automáticamente** al escribirla (no hay botón "Guardar").
+- Muestra el promedio y el estado de la asignatura con colores:
+  - **Verde**: aprobado o eximido.
+  - **Amarillo**: va a examen (solo lectivas).
+  - **Rojo**: reprobado.
+  - **Gris**: todavía no hay notas (o faltan notas y aún no hay un resultado definido).
+- Calcula la nota mínima que se necesita en lo que falta para aprobar (prácticas) o para eximirse (lectivas), y la nota mínima del examen.
+- Permite justificar la falta a examen en una lectiva y deshacerlo.
+- **Ponderación libre**: si las ponderaciones cambiaron durante el año, se pueden editar nombres y porcentajes, agregar y eliminar evaluaciones (como en la primera versión del proyecto) y volver a la ponderación original. Los electivos vienen siempre con ponderación libre (parten con 4 evaluaciones de 25 %).
 
-Las asignaturas vienen cargadas:
+La interfaz está pensada para personas que no saben de informática: no muestra términos técnicos, fórmulas ni umbrales internos. Esos detalles están solo en este README.
 
-- Funciones y Matrices
-- Programación Orientada a Objetos
-- Bases de Datos Estructuradas
-- Administración
-- Modelamiento de Soluciones Informáticas
-- Metodología de Desarrollo Ágil
+## Ejecutarla desde VS Code
 
-## Instalación
+Requisito para desarrollar: [Node.js](https://nodejs.org/) 22.12 o superior (se probó con Node 24).
 
-Requisitos: Python 3 y MySQL encendido (por ejemplo con WAMP o XAMPP).
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## Configurar el archivo .env
-
-Copia `.env.example` a `.env` y completa los datos de tu MySQL:
+1. Abrir la carpeta del proyecto en VS Code.
+2. Abrir una terminal (`Terminal → New Terminal`) y ejecutar:
 
 ```bash
-copy .env.example .env
+npm install
+npm start
 ```
 
-Con WAMP o XAMPP normalmente el usuario es `root` y la contraseña va vacía.
+`npm install` descarga Electron, electron-builder y better-sqlite3. La primera vez que se ejecuta `npm start`, Electron descarga su programa (una sola vez).
 
-## Crear la base de datos
+También se puede usar `Run and Debug → Abrir NotaClara` (configurado en [.vscode/launch.json](.vscode/launch.json)).
 
-El script [crear_bd.sql](crear_bd.sql) crea la base de datos `notaclara`, las tablas y las asignaturas. Se puede ejecutar de cualquiera de estas formas:
+> `npm start` usa [scripts/iniciar.js](scripts/iniciar.js), que quita la variable `ELECTRON_RUN_AS_NODE` antes de abrir Electron. VS Code a veces la hereda a sus terminales y tareas, y con ella la ventana no se abre.
 
-**Con phpMyAdmin** (http://localhost/phpmyadmin): pestaña **Importar** → elegir `crear_bd.sql` → **Importar**.
-
-**Con la consola de MySQL:**
+### Pruebas
 
 ```bash
-mysql -u root -p --default-character-set=utf8mb4 < crear_bd.sql
+npm test
 ```
 
-**Con Python** (hace lo mismo que el script SQL):
+Usa el ejecutor de pruebas que trae Node (`node:test`). Las pruebas están en [test/](test/): cálculos, redondeo, validación de notas y guardado en un archivo SQLite temporal.
+
+## Generar el instalador (.exe)
 
 ```bash
-python crear_bd.py
+npm run build
 ```
 
-## Ejecutar
+Crea `dist/NotaClara-Instalador-<versión>.exe` con electron-builder (instalador NSIS para Windows x64). El instalador incluye todo lo necesario (Electron y SQLite), así que **quien instala la app no necesita instalar nada más** ni tener internet. Permite elegir la carpeta de instalación y crea accesos directos en el escritorio y en el menú Inicio.
 
-Versión gráfica (customtkinter):
+Para generar el instalador sí se necesita internet la primera vez, porque electron-builder descarga sus herramientas. La carpeta `dist/` no se sube al repositorio.
 
-```bash
-python interfaz.py
+El instalador no está firmado digitalmente, así que Windows SmartScreen puede mostrar un aviso la primera vez ("Más información → Ejecutar de todas formas").
+
+## Dónde se guardan las notas
+
+En un archivo SQLite llamado `notaclara.sqlite`, dentro de la carpeta de datos del usuario de Windows (`app.getPath('userData')`):
+
+```
+%APPDATA%\NotaClara\notaclara.sqlite
 ```
 
-Versión de terminal:
+(por ejemplo `C:\Users\<usuario>\AppData\Roaming\NotaClara\notaclara.sqlite`). Nunca se guarda junto al `.exe`, así que desinstalar o actualizar la app no borra las notas. El archivo se crea solo la primera vez que se abre la app, con todas las asignaturas precargadas. Para empezar de cero basta con cerrar la app y borrar ese archivo.
 
-```bash
-python main.py
-```
+### Tablas
 
-Las dos versiones usan la misma base de datos, así que lo que se guarda en una aparece en la otra.
-
-## Pruebas
-
-```bash
-python -m unittest test_calculos
-```
-
-## Archivos
-
-| Archivo | Para qué sirve |
+| Tabla | Contenido |
 |---|---|
-| `interfaz.py` | Versión gráfica con customtkinter |
-| `main.py` | Versión de terminal: menú principal y lectura de datos |
-| `config.py` | Lee las credenciales desde `.env` |
-| `db.py` | Conexión a MySQL |
-| `models.py` | Tablas `Asignatura` y `Evaluacion` |
-| `calculos.py` | Fórmulas de notas (no usa la base de datos) |
-| `vistas.py` | Tablas que se muestran en pantalla |
-| `crear_bd.sql` | Script SQL que crea la base de datos |
-| `crear_bd.py` | Crea la base de datos desde Python |
-| `test_calculos.py` | Pruebas de los cálculos |
+| `semestre` | Los 4 semestres (`numero`, `nombre`) |
+| `asignatura` | `nombre`, `semestre_id`, `tipo` (`practica` / `lectiva`), `ponderacion_libre`, `siempre_libre` (electivos), `orden` |
+| `evaluacion` | `asignatura_id`, `nombre`, `porcentaje` (entero), `nota` (en décimas: 4,5 se guarda como 45; vacía si está pendiente), `orden` |
+| `estado_examen` | `asignatura_id`, `nota_examen` (en décimas), `falta_justificada` (0 / 1) |
+
+Las ponderaciones originales están en [src/datos/malla.js](src/datos/malla.js); se usan para precargar y para "Restaurar ponderación original".
+
+## Reglas de cálculo
+
+Toda la lógica está en [src/logica/calculos.js](src/logica/calculos.js), un módulo sin dependencias de la interfaz ni de la base de datos. La interfaz solo recibe resultados ya redondeados.
+
+### Precisión: solo enteros
+
+No se usan decimales flotantes para comparar. Una nota se maneja en décimas (4,5 → 45) y un porcentaje como entero (30 % → 30). Su producto queda en milésimas: 45 × 30 = 1350 = 1,350. Si los porcentajes suman 100, la suma de los aportes es el promedio ponderado **exacto** en milésimas.
+
+### Redondeo chileno
+
+Primero a 2 decimales (mitad hacia arriba) y luego a 1 decimal (mitad hacia arriba):
+
+| Promedio real | A 2 decimales | Se muestra |
+|---|---|---|
+| 4,945 | 4,95 | 5,0 |
+| 3,945 | 3,95 | 4,0 |
+| 4,944 | 4,94 | 4,9 |
+
+La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real es 4,945, se ve 5,0 en verde).
+
+### Umbrales internos (nunca se muestran en la app)
+
+| Umbral | Valor | Equivale a |
+|---|---|---|
+| Aprobar | **3,945** | 4,0 final |
+| Eximirse (solo lectivas) | **4,945** | 5,0 final |
+
+### Asignatura práctica
+
+- Promedio ≥ 3,945 → verde "Aprobado". Si no → rojo "Reprobado". No hay examen.
+- Con evaluaciones pendientes se calcula la nota mínima en lo pendiente para llegar a 3,945: `(3,945 − acumulado) ÷ porcentaje pendiente`, redondeada hacia arriba a 1 decimal y como mínimo 1,0.
+  - Si es mayor que 7,0 → rojo "Reprobado" aunque falten notas.
+  - Si basta con 1,0 → verde "Aprobado" (ya está asegurado).
+
+### Asignatura lectiva
+
+- Promedio de presentación ≥ 4,945 → verde "Eximido".
+- Si no → amarillo "Vas a examen" (siempre puede ir a examen, aunque tenga 1,0).
+- Nota final con examen = presentación (redondeada) × 0,75 + examen × 0,25. Aprueba si la nota final ≥ 3,945.
+- Nota mínima de examen = `(3,945 − presentación × 0,75) ÷ 0,25`, redondeada hacia arriba a 1 decimal, mínimo 1,0. Si es mayor que 7,0 → rojo "Reprobado".
+  - Ejemplo: presentación 4,5 → (3,945 − 3,375) ÷ 0,25 = 2,28 → **2,3**. Con 2,3 la final es 3,95 (se ve 4,0, aprueba); con 2,2 es 3,925 (se ve 3,9, reprueba).
+- Con evaluaciones pendientes se muestra la nota mínima en lo pendiente para eximirse. Si eximirse ya es imposible → amarillo "Vas a examen". Si ni con 7,0 en todo lo pendiente y 7,0 en el examen alcanza → rojo "Reprobado".
+
+### Falta justificada a examen
+
+Solo en lectivas en amarillo. Después de confirmar, la asignatura se calcula como una práctica (promedio ≥ 3,945 aprueba, si no reprueba). Se puede deshacer.
+
+### Validación de notas
+
+- Se acepta coma o punto (`6,3` y `6.3`). Las notas se muestran siempre con coma y un decimal.
+- Fuera de 1,0 a 7,0 → "Nota inválida. Ingrese una nota entre 1,0 y 7,0."
+- Más de un decimal (`6,34`) → "Nota inválida. Ingrese un número con UN solo decimal."
+- En ponderación libre los porcentajes son enteros de 0 a 100. Si no suman 100 % no se calcula el estado y se muestra "Los porcentajes deben sumar 100%."
+
+## Estructura de carpetas
+
+```
+NotaClara/
+├── package.json             Dependencias, scripts (start, test, build) y configuración del instalador
+├── recursos/
+│   └── icono.png            Ícono de la app y del instalador
+├── scripts/
+│   └── iniciar.js           Abre Electron para `npm start`
+├── src/
+│   ├── datos/
+│   │   └── malla.js         Semestres, asignaturas y ponderaciones originales
+│   ├── logica/
+│   │   └── calculos.js      Cálculos puros: redondeo, umbrales, estados, validación
+│   ├── main/
+│   │   ├── main.js          Proceso principal de Electron (ventana y comunicación con la interfaz)
+│   │   ├── preload.js       Puente seguro entre la interfaz y el proceso principal
+│   │   ├── basedatos.js     Archivo SQLite: tablas, precarga y consultas
+│   │   └── servicio.js      Une datos y cálculos; entrega todo listo para mostrar
+│   └── renderer/
+│       ├── index.html       Interfaz
+│       ├── estilos.css
+│       └── app.js           Comportamiento de la interfaz (no calcula nada)
+└── test/
+    ├── calculos.test.js     Pruebas de la lógica (incluye las migradas de test_calculos.py)
+    └── servicio.test.js     Pruebas de guardado y ponderación libre
+```
+
+## Historia
+
+La primera versión era una aplicación de terminal en Python con MySQL (peewee + pymysql) y luego tuvo una interfaz con customtkinter. Esta versión la reemplaza por completo: ya no se necesita Python, MySQL, WAMP/XAMPP ni el archivo `.env`.
