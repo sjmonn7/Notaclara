@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld("notaclara", {
   agregarEvaluacion: llamar("evaluacion:agregar"),
   eliminarEvaluacion: llamar("evaluacion:eliminar"),
   guardarNotaExamen: llamar("examen:nota"),
-  justificarFalta: llamar("examen:justificar"),
+  justificarInasistencia: llamar("inasistencia:justificar"),
   cambiarPonderacionLibre: llamar("ponderacion:libre"),
   restaurarPonderacion: llamar("ponderacion:restaurar"),
 });

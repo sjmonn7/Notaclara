@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "node scripts/iniciar.js",
-    "test": "node --test \"test/**/*.test.js\"",
+    "test": "node --test",
     "build": "electron-builder --win nsis",
     "postinstall": "electron-builder install-app-deps"
   },

@@ -14,8 +14,8 @@ Es una aplicación de escritorio para Windows hecha con Electron (HTML + CSS + J
   - **Amarillo**: va a examen (solo lectivas).
   - **Rojo**: reprobado.
   - **Gris**: todavía no hay notas (o faltan notas y aún no hay un resultado definido).
-- Calcula la nota mínima que se necesita en lo que falta para aprobar (prácticas) o para eximirse (lectivas), y la nota mínima del examen.
-- Permite justificar la falta a examen en una lectiva y deshacerlo.
+- Calcula la nota mínima que se necesita en lo que falta para aprobar (prácticas) o para eximirse (lectivas). En las últimas dos evaluaciones pendientes muestra la nota de referencia, suponiendo que se obtiene la misma nota en todas las pendientes.
+- En una asignatura lectiva completa cuyo promedio de presentación queda bajo 4,945, permite justificar cada prueba inasistida que tenga un 1,0. La nota 1,0 se conserva dentro del 75 % de presentación; el examen final representa el 25 % restante. Cada prueba se puede desjustificar por separado.
 - **Ponderación libre**: si las ponderaciones cambiaron durante el año, se pueden editar nombres y porcentajes, agregar y eliminar evaluaciones (como en la primera versión del proyecto) y volver a la ponderación original. Los electivos vienen siempre con ponderación libre (parten con 4 evaluaciones de 25 %).
 
 La interfaz está pensada para personas que no saben de informática: no muestra términos técnicos, fórmulas ni umbrales internos. Esos detalles están solo en este README.
@@ -74,10 +74,12 @@ En un archivo SQLite llamado `notaclara.sqlite`, dentro de la carpeta de datos d
 |---|---|
 | `semestre` | Los 4 semestres (`numero`, `nombre`) |
 | `asignatura` | `nombre`, `semestre_id`, `tipo` (`practica` / `lectiva`), `ponderacion_libre`, `siempre_libre` (electivos), `orden` |
-| `evaluacion` | `asignatura_id`, `nombre`, `porcentaje` (entero), `nota` (en décimas: 4,5 se guarda como 45; vacía si está pendiente), `orden` |
-| `estado_examen` | `asignatura_id`, `nota_examen` (en décimas), `falta_justificada` (0 / 1) |
+| `evaluacion` | `asignatura_id`, `nombre`, `porcentaje` (entero), `nota` (en décimas: 4,5 se guarda como 45; vacía si está pendiente), `inasistencia_justificada` (0 / 1), `orden` |
+| `estado_examen` | `asignatura_id`, `nota_examen` (en décimas) |
 
 Las ponderaciones originales están en [src/datos/malla.js](src/datos/malla.js); se usan para precargar y para "Restaurar ponderación original".
+
+Al abrir una base anterior, la aplicación agrega la nueva marca por evaluación sin borrar las notas guardadas. La antigua marca de falta al examen queda sin uso y no afecta los cálculos.
 
 ## Reglas de cálculo
 
@@ -122,9 +124,13 @@ La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real
   - Ejemplo: presentación 4,5 → (3,945 − 3,375) ÷ 0,25 = 2,28 → **2,3**. Con 2,3 la final es 3,95 (se ve 4,0, aprueba); con 2,2 es 3,925 (se ve 3,9, reprueba).
 - Con evaluaciones pendientes se muestra la nota mínima en lo pendiente para eximirse. Si eximirse ya es imposible → amarillo "Vas a examen". Si ni con 7,0 en todo lo pendiente y 7,0 en el examen alcanza → rojo "Reprobado".
 
-### Falta justificada a examen
+### Prueba inasistida
 
-Solo en lectivas en amarillo. Después de confirmar, la asignatura se calcula como una práctica (promedio ≥ 3,945 aprueba, si no reprueba). Se puede deshacer.
+- La opción aparece solo en asignaturas lectivas, cuando todas las evaluaciones tienen nota y el promedio de presentación sin redondear es menor que 4,945.
+- Solo se puede justificar una evaluación cuya nota sea 1,0. Si hay varias, cada una se marca o desmarca por separado.
+- La justificación no borra ni reemplaza el 1,0: la presentación completa (incluido ese 1,0) conserva su ponderación del 75 % y una sola nota de examen final del ramo aporta el 25 % restante.
+- Si el promedio llega a 4,945 o más, no se ofrece esta acción. En ramos prácticos no hay examen final.
+- Al ingresar una nota inválida, el promedio y la nota final se ocultan hasta corregirla. La nota inválida no se guarda ni se usa en los cálculos.
 
 ### Validación de notas
 

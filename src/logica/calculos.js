@@ -170,8 +170,6 @@ function resultado(estado, mensaje, extra) {
     porcentajeTotal: 100,
     notaNecesaria: null,
     examen: null,
-    puedeJustificar: false,
-    faltaJustificada: false,
     ...extra,
   };
 }
@@ -182,7 +180,6 @@ function resultado(estado, mensaje, extra) {
  *   tipo: "practica" | "lectiva",
  *   evaluaciones: [{ porcentaje, nota }]   (nota en décimas o null si está pendiente)
  *   notaExamen: décimas | null,
- *   faltaJustificada: boolean
  * }
  * Todo lo numérico del resultado viene en décimas y ya redondeado.
  */
@@ -201,29 +198,19 @@ function calcularAsignatura(datos) {
     promedio: evaluado > 0 ? redondearFraccion(acumulada * 100, evaluado) : null,
   };
 
-  if (datos.tipo === "lectiva" && datos.faltaJustificada) {
-    if (pendiente === 0 && acumulada >= EXIMIRSE) {
-      return resultado("eximido", "¡Felicitaciones! Te eximiste del examen y aprobaste la asignatura.", base);
-    }
-    return calcularSinExamen(acumulada, evaluado, pendiente, { ...base, faltaJustificada: true }, true);
-  }
   if (datos.tipo === "lectiva") {
     return calcularLectiva(acumulada, evaluado, pendiente, datos.notaExamen ?? null, base);
   }
-  return calcularSinExamen(acumulada, evaluado, pendiente, base, false);
+  return calcularSinExamen(acumulada, evaluado, pendiente, base);
 }
 
-/** Práctica (o lectiva con falta justificada a examen): aprueba con el promedio, sin examen. */
-function calcularSinExamen(acumulada, evaluado, pendiente, base, justificada) {
+/** Práctica: aprueba con el promedio y no tiene examen final. */
+function calcularSinExamen(acumulada, evaluado, pendiente, base) {
   if (pendiente === 0) {
     if (acumulada >= APROBAR) {
-      const mensaje = justificada ? "Aprobaste sin dar examen." : "¡Felicitaciones! Aprobaste la asignatura.";
-      return resultado("aprobado", mensaje, base);
+      return resultado("aprobado", "¡Felicitaciones! Aprobaste la asignatura.", base);
     }
-    const mensaje = justificada
-      ? "Sin dar examen, tu promedio no alcanza el 4,0 necesario para aprobar."
-      : "Tu promedio no alcanza el 4,0 necesario para aprobar.";
-    return resultado("reprobado", mensaje, base);
+    return resultado("reprobado", "Tu promedio no alcanza el 4,0 necesario para aprobar.", base);
   }
 
   const necesaria = notaNecesaria(acumulada, pendiente, APROBAR);
@@ -252,9 +239,6 @@ function calcularLectiva(acumulada, evaluado, pendiente, notaExamen, base) {
 
     const necesaria = examenNecesario(presentacion);
     const examen = { necesaria, nota: notaExamen, final: null };
-    if (necesaria > NOTA_MAXIMA) {
-      return resultado("reprobado", "Aunque saques 7,0 en el examen, no alcanzas a aprobar.", base);
-    }
     if (notaExamen !== null) {
       const final = notaFinalConExamen(presentacion, notaExamen);
       examen.final = redondear(final);
@@ -263,10 +247,12 @@ function calcularLectiva(acumulada, evaluado, pendiente, notaExamen, base) {
       }
       return resultado("reprobado", `Tu nota final con examen es ${formatearNota(examen.final)} y no alcanza para aprobar.`, { ...base, examen });
     }
+    if (necesaria > NOTA_MAXIMA) {
+      return resultado("reprobado", "Aunque saques 7,0 en el examen, no alcanzas a aprobar.", { ...base, examen });
+    }
     return resultado("examen", `Necesitas al menos un ${formatearNota(necesaria)} en el examen para aprobar.`, {
       ...base,
       examen,
-      puedeJustificar: true,
     });
   }
 
@@ -296,10 +282,9 @@ function calcularLectiva(acumulada, evaluado, pendiente, notaExamen, base) {
       notaNecesaria: null,
     });
   }
-  return resultado("examen", "Ya no alcanzas a eximirte, pero puedes aprobar en el examen.", {
+  return resultado("examen", "Ya no alcanzas a eximirte, pero puedes aprobar en el examen cuando completes tus notas.", {
     ...base,
     notaNecesaria: null,
-    puedeJustificar: true,
   });
 }
 
