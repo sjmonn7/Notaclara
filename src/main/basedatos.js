@@ -23,18 +23,18 @@ const ESQUEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS evaluacion (
-    id            INTEGER PRIMARY KEY,
-    asignatura_id INTEGER NOT NULL REFERENCES asignatura(id) ON DELETE CASCADE,
-    nombre        TEXT    NOT NULL,
-    porcentaje    INTEGER NOT NULL CHECK (porcentaje BETWEEN 0 AND 100),
-    nota          INTEGER CHECK (nota IS NULL OR nota BETWEEN 10 AND 70),
-    orden         INTEGER NOT NULL
+    id                       INTEGER PRIMARY KEY,
+    asignatura_id            INTEGER NOT NULL REFERENCES asignatura(id) ON DELETE CASCADE,
+    nombre                   TEXT    NOT NULL,
+    porcentaje               INTEGER NOT NULL CHECK (porcentaje BETWEEN 0 AND 100),
+    nota                     INTEGER CHECK (nota IS NULL OR nota BETWEEN 10 AND 70),
+    orden                    INTEGER NOT NULL,
+    inasistencia_justificada INTEGER NOT NULL DEFAULT 0 CHECK (inasistencia_justificada IN (0, 1))
   );
 
   CREATE TABLE IF NOT EXISTS estado_examen (
-    asignatura_id     INTEGER PRIMARY KEY REFERENCES asignatura(id) ON DELETE CASCADE,
-    nota_examen       INTEGER CHECK (nota_examen IS NULL OR nota_examen BETWEEN 10 AND 70),
-    falta_justificada INTEGER NOT NULL DEFAULT 0
+    asignatura_id INTEGER PRIMARY KEY REFERENCES asignatura(id) ON DELETE CASCADE,
+    nota_examen   INTEGER CHECK (nota_examen IS NULL OR nota_examen BETWEEN 10 AND 70)
   );
 `;
 
@@ -51,6 +51,12 @@ function abrirBaseDatos(ruta) {
   const db = new Database(ruta);
   db.pragma("foreign_keys = ON");
   db.exec(ESQUEMA);
+  const columnasEvaluacion = db.pragma("table_info(evaluacion)");
+  if (!columnasEvaluacion.some((columna) => columna.name === "inasistencia_justificada")) {
+    db.exec(
+      "ALTER TABLE evaluacion ADD COLUMN inasistencia_justificada INTEGER NOT NULL DEFAULT 0 CHECK (inasistencia_justificada IN (0, 1))",
+    );
+  }
 
   const sql = {
     semestrePorNumero: db.prepare("SELECT id FROM semestre WHERE numero = ?"),
@@ -73,19 +79,22 @@ function abrirBaseDatos(ruta) {
        WHERE a.id = ?`,
     ),
     evaluaciones: db.prepare(
-      "SELECT id, nombre, porcentaje, nota FROM evaluacion WHERE asignatura_id = ? ORDER BY orden, id",
+      `SELECT id, nombre, porcentaje, nota, inasistencia_justificada
+       FROM evaluacion WHERE asignatura_id = ? ORDER BY orden, id`,
     ),
-    estadoExamen: db.prepare("SELECT nota_examen, falta_justificada FROM estado_examen WHERE asignatura_id = ?"),
+    estadoExamen: db.prepare("SELECT nota_examen FROM estado_examen WHERE asignatura_id = ?"),
     asignaturaDeEvaluacion: db.prepare("SELECT asignatura_id FROM evaluacion WHERE id = ?"),
     siguienteOrden: db.prepare("SELECT COALESCE(MAX(orden), 0) + 1 AS orden FROM evaluacion WHERE asignatura_id = ?"),
 
     guardarNota: db.prepare("UPDATE evaluacion SET nota = ? WHERE id = ?"),
+    guardarInasistenciaJustificada: db.prepare(
+      "UPDATE evaluacion SET inasistencia_justificada = ? WHERE id = ?",
+    ),
     guardarNombre: db.prepare("UPDATE evaluacion SET nombre = ? WHERE id = ?"),
     guardarPorcentaje: db.prepare("UPDATE evaluacion SET porcentaje = ? WHERE id = ?"),
     eliminarEvaluacion: db.prepare("DELETE FROM evaluacion WHERE id = ?"),
     eliminarEvaluaciones: db.prepare("DELETE FROM evaluacion WHERE asignatura_id = ?"),
     guardarNotaExamen: db.prepare("UPDATE estado_examen SET nota_examen = ? WHERE asignatura_id = ?"),
-    guardarFaltaJustificada: db.prepare("UPDATE estado_examen SET falta_justificada = ? WHERE asignatura_id = ?"),
     guardarPonderacionLibre: db.prepare("UPDATE asignatura SET ponderacion_libre = ? WHERE id = ?"),
   };
 
@@ -112,7 +121,7 @@ function abrirBaseDatos(ruta) {
   function asignatura(id) {
     const fila = sql.asignatura.get(id);
     if (!fila) return null;
-    const examen = sql.estadoExamen.get(id) ?? { nota_examen: null, falta_justificada: 0 };
+    const examen = sql.estadoExamen.get(id) ?? { nota_examen: null };
     return {
       id: fila.id,
       nombre: fila.nombre,
@@ -123,7 +132,6 @@ function abrirBaseDatos(ruta) {
       siempreLibre: fila.siempre_libre === 1,
       evaluaciones: sql.evaluaciones.all(id),
       notaExamen: examen.nota_examen,
-      faltaJustificada: examen.falta_justificada === 1,
     };
   }
 
@@ -138,12 +146,26 @@ function abrirBaseDatos(ruta) {
     if (!original) return;
     const notas = new Map();
     for (const evaluacion of sql.evaluaciones.all(asignaturaId)) {
-      if (!notas.has(clave(evaluacion.nombre))) notas.set(clave(evaluacion.nombre), evaluacion.nota);
+      if (!notas.has(clave(evaluacion.nombre))) {
+        notas.set(clave(evaluacion.nombre), {
+          nota: evaluacion.nota,
+          inasistenciaJustificada: evaluacion.inasistencia_justificada,
+        });
+      }
     }
     sql.eliminarEvaluaciones.run(asignaturaId);
     original.forEach((evaluacion, indice) => {
-      const nota = notas.get(clave(evaluacion.nombre)) ?? null;
-      sql.insertarEvaluacion.run(asignaturaId, evaluacion.nombre, evaluacion.porcentaje, nota, indice + 1);
+      const datos = notas.get(clave(evaluacion.nombre));
+      const { lastInsertRowid } = sql.insertarEvaluacion.run(
+        asignaturaId,
+        evaluacion.nombre,
+        evaluacion.porcentaje,
+        datos?.nota ?? null,
+        indice + 1,
+      );
+      if (datos?.inasistenciaJustificada) {
+        sql.guardarInasistenciaJustificada.run(datos.inasistenciaJustificada, lastInsertRowid);
+      }
     });
   });
 
@@ -155,6 +177,8 @@ function abrirBaseDatos(ruta) {
     asignaturaDeEvaluacion: (evaluacionId) => sql.asignaturaDeEvaluacion.get(evaluacionId)?.asignatura_id ?? null,
 
     guardarNota: (evaluacionId, nota) => sql.guardarNota.run(nota, evaluacionId),
+    guardarInasistenciaJustificada: (evaluacionId, justificada) =>
+      sql.guardarInasistenciaJustificada.run(justificada ? 1 : 0, evaluacionId),
     guardarNombre: (evaluacionId, nombre) => sql.guardarNombre.run(nombre, evaluacionId),
     guardarPorcentaje: (evaluacionId, porcentaje) => sql.guardarPorcentaje.run(porcentaje, evaluacionId),
     eliminarEvaluacion: (evaluacionId) => sql.eliminarEvaluacion.run(evaluacionId),
@@ -163,7 +187,6 @@ function abrirBaseDatos(ruta) {
       return sql.insertarEvaluacion.run(asignaturaId, nombre, porcentaje, null, orden).lastInsertRowid;
     },
     guardarNotaExamen: (asignaturaId, nota) => sql.guardarNotaExamen.run(nota, asignaturaId),
-    guardarFaltaJustificada: (asignaturaId, justificada) => sql.guardarFaltaJustificada.run(justificada ? 1 : 0, asignaturaId),
     guardarPonderacionLibre: (asignaturaId, libre) => sql.guardarPonderacionLibre.run(libre ? 1 : 0, asignaturaId),
     restaurarPonderacion,
     cerrar: () => db.close(),

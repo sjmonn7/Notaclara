@@ -10,7 +10,7 @@ function evaluaciones(...pares) {
 }
 
 function calcular(tipo, pares, extra = {}) {
-  return c.calcularAsignatura({ tipo, evaluaciones: evaluaciones(...pares), notaExamen: null, faltaJustificada: false, ...extra });
+  return c.calcularAsignatura({ tipo, evaluaciones: evaluaciones(...pares), notaExamen: null, ...extra });
 }
 
 const nota = c.formatearNota;
@@ -96,8 +96,15 @@ test.describe("validación de notas", () => {
 
   test("bordes 1,0 y 7,0 se aceptan; enteros también", () => {
     assert.equal(c.validarNota("1,0").valor, 10);
+    assert.equal(c.validarNota("7,0").valor, 70);
     assert.equal(c.validarNota("7").valor, 70);
     assert.equal(c.validarNota(" 5 ").valor, 50);
+  });
+
+  test("7,77 se rechaza y no se redondea a 7,0", () => {
+    const r = c.validarNota("7,77");
+    assert.equal(r.valida, false);
+    assert.equal(r.mensaje, c.MENSAJE_DECIMALES);
   });
 
   test("vacío deja la evaluación pendiente", () => {
@@ -173,7 +180,6 @@ test.describe("práctica", () => {
   test("una práctica nunca va a examen", () => {
     const r = calcular("practica", [["3,0", 100]]);
     assert.equal(r.examen, null);
-    assert.equal(r.puedeJustificar, false);
   });
 });
 
@@ -203,7 +209,6 @@ test.describe("lectiva", () => {
     assert.equal(r.color, "amarillo");
     assert.equal(nota(r.promedio), "4,5");
     assert.equal(nota(r.examen.necesaria), "2,3");
-    assert.equal(r.puedeJustificar, true);
   });
 
   test("presentación 4,5 con examen 2,3 aprueba", () => {
@@ -262,25 +267,33 @@ test.describe("lectiva", () => {
   });
 });
 
-// ---------- Falta justificada a examen ----------
+// ---------- Prueba inasistida ----------
 
-test.describe("falta justificada a examen", () => {
-  test("lectiva con 4,0 aprueba", () => {
-    const r = calcular("lectiva", [["4,0", 100]], { faltaJustificada: true });
-    assert.equal(r.color, "verde");
-    assert.equal(r.titulo, "Aprobado");
-    assert.equal(r.examen, null);
-  });
+test.describe("prueba inasistida", () => {
+  test("mantiene el 1,0 en la presentación y agrega el examen como 25 %", () => {
+    const r = calcular("lectiva", [
+      ["1,0", 20],
+      ["5,5", 25],
+      ["5,5", 25],
+      ["5,5", 30],
+    ]);
+    assert.equal(nota(r.promedio), "4,6");
+    assert.equal(nota(r.examen.necesaria), "2,0");
+    assert.equal(r.estado, "examen");
 
-  test("lectiva con 3,9 reprueba", () => {
-    const r = calcular("lectiva", [["3,9", 100]], { faltaJustificada: true });
-    assert.equal(r.color, "rojo");
-    assert.equal(r.titulo, "Reprobado");
-  });
-
-  test("se puede deshacer: sin justificar vuelve a examen", () => {
-    const r = calcular("lectiva", [["3,9", 100]], { faltaJustificada: false });
-    assert.equal(r.color, "amarillo");
+    const conExamen = calcular(
+      "lectiva",
+      [
+        ["1,0", 20],
+        ["5,5", 25],
+        ["5,5", 25],
+        ["5,5", 30],
+      ],
+      { notaExamen: 23 },
+    );
+    assert.equal(nota(conExamen.promedio), "4,6");
+    assert.equal(nota(conExamen.examen.final), "4,0");
+    assert.equal(conExamen.titulo, "Aprobado");
   });
 });
 

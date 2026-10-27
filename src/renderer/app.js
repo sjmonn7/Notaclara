@@ -304,7 +304,15 @@ function seccionEvaluaciones(vista) {
     onchange: (evento) => cambiarPonderacionLibre(evento.target),
   });
 
-  const cuerpo = crear("tbody", {}, vista.evaluaciones.map((evaluacion) => filaEvaluacion(evaluacion, libre)));
+  const permiteJustificarInasistencia = asignatura.tipo === "lectiva";
+  const muestraAcciones = libre || permiteJustificarInasistencia;
+  const cuerpo = crear(
+    "tbody",
+    {},
+    vista.evaluaciones.map((evaluacion) =>
+      filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarInasistencia),
+    ),
+  );
   const tabla = crear(
     "table",
     { class: `tabla${libre ? " tabla--libre" : ""}` },
@@ -317,7 +325,7 @@ function seccionEvaluaciones(vista) {
         crear("th", { texto: "Evaluación" }),
         crear("th", { class: "col-porcentaje", texto: "Porcentaje" }),
         crear("th", { class: "col-nota", texto: "Nota" }),
-        libre && crear("th", { class: "col-accion" }, crear("span", { class: "oculto", texto: "Eliminar" })),
+        muestraAcciones && crear("th", { class: "col-accion" }, crear("span", { class: "oculto", texto: "Acciones" })),
       ),
     ),
     cuerpo,
@@ -353,9 +361,9 @@ function seccionEvaluaciones(vista) {
   );
 }
 
-function filaEvaluacion(evaluacion, libre) {
+function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarInasistencia) {
   const errores = { nombre: "", porcentaje: "", nota: "" };
-  const textoError = crear("td", { colspan: libre ? 4 : 3 });
+  const textoError = crear("td", { colspan: muestraAcciones ? 4 : 3 });
   const filaError = crear("tr", { class: "fila-error", hidden: true }, textoError);
 
   function mostrarError(campo, input, mensaje) {
@@ -380,10 +388,15 @@ function filaEvaluacion(evaluacion, libre) {
   conectarCampo(nota, (texto) => api.guardarNota(evaluacion.id, texto), (mensaje) => mostrarError("nota", nota, mensaje), (vista) => {
     return vista.evaluaciones.find((item) => item.id === evaluacion.id)?.nota;
   });
+  const marcaJustificada = crear("span", {
+    class: "marca-justificada",
+    texto: "Inasistencia justificada",
+    hidden: !evaluacion.inasistenciaJustificada,
+  });
 
   let celdaNombre;
   let celdaPorcentaje;
-  let celdaAccion = null;
+  let botonEliminar = null;
   if (libre) {
     const nombre = crear("input", { class: "campo campo--nombre", type: "text", maxlength: "60", "aria-label": "Nombre de la evaluación", value: evaluacion.nombre });
     conectarCampo(nombre, (texto) => api.renombrarEvaluacion(evaluacion.id, texto), (mensaje) => mostrarError("nombre", nombre, mensaje));
@@ -399,25 +412,68 @@ function filaEvaluacion(evaluacion, libre) {
     });
     conectarCampo(porcentaje, (texto) => api.cambiarPorcentaje(evaluacion.id, texto), (mensaje) => mostrarError("porcentaje", porcentaje, mensaje));
 
-    celdaNombre = crear("td", {}, nombre);
-    celdaPorcentaje = crear("td", { class: "col-porcentaje" }, crear("span", { class: "con-sufijo" }, porcentaje, crear("span", { texto: "%" })));
-    celdaAccion = crear(
+    celdaNombre = crear(
       "td",
-      { class: "col-accion" },
-      crear("button", {
+      {},
+      nombre,
+      marcaJustificada,
+    );
+    celdaPorcentaje = crear("td", { class: "col-porcentaje" }, crear("span", { class: "con-sufijo" }, porcentaje, crear("span", { texto: "%" })));
+    botonEliminar = crear(
+      "button",
+      {
         type: "button",
         class: "boton-icono",
         title: "Eliminar evaluación",
         "aria-label": `Eliminar ${evaluacion.nombre}`,
         onclick: () => eliminarEvaluacion(evaluacion.id, nombre.value),
-      }, "✕"),
+      },
+      "✕",
     );
   } else {
-    celdaNombre = crear("td", { class: "nombre-evaluacion", texto: evaluacion.nombre });
+    celdaNombre = crear(
+      "td",
+      { class: "nombre-evaluacion" },
+      evaluacion.nombre,
+      marcaJustificada,
+    );
     celdaPorcentaje = crear("td", { class: "col-porcentaje", texto: `${evaluacion.porcentaje}%` });
   }
 
-  const fila = crear("tr", {}, celdaNombre, celdaPorcentaje, crear("td", { class: "col-nota" }, nota), celdaAccion);
+  const acciones = [];
+  if (permiteJustificarInasistencia) {
+    acciones.push(
+      crear(
+        "button",
+        {
+          type: "button",
+          class: "boton boton--pequeno",
+          "data-inasistencia-action": evaluacion.id,
+          "data-justificada": String(evaluacion.inasistenciaJustificada),
+          hidden: !evaluacion.puedeJustificarInasistencia && !evaluacion.inasistenciaJustificada,
+          onclick: (evento) =>
+            cambiarJustificacionInasistencia(
+              evaluacion.id,
+              evento.currentTarget.dataset.justificada !== "true",
+            ),
+        },
+        evaluacion.inasistenciaJustificada ? "Deshacer" : "Justificar inasistencia",
+      ),
+    );
+  }
+  if (botonEliminar) acciones.push(botonEliminar);
+
+  const celdaAccion = muestraAcciones
+    ? crear("td", { class: "col-accion" }, crear("div", { class: "acciones-evaluacion" }, acciones))
+    : null;
+  const fila = crear(
+    "tr",
+    { "data-evaluacion-id": evaluacion.id },
+    celdaNombre,
+    celdaPorcentaje,
+    crear("td", { class: "col-nota" }, nota),
+    celdaAccion,
+  );
   return [fila, filaError];
 }
 
@@ -491,18 +547,14 @@ function seccionExamen(vista) {
     crear("div", { class: "examen-entrada" }, crear("label", { for: "nota-examen", texto: "Nota del examen" }), nota),
     error,
   );
-  const espera = crear("p", { class: "nota-al-pie", texto: "Cuando tengas todas tus notas podrás ingresar aquí la nota del examen." });
-  const justificar = crear("button", { type: "button", class: "boton", onclick: justificarFalta }, "Justificar falta a examen");
-  const normal = crear("div", { class: "examen-normal" }, espera, campo, justificar);
-  const justificada = crear(
-    "div",
-    { class: "examen-justificada" },
-    crear("p", { texto: "Justificaste tu falta a examen. Tu nota se calcula sin dar el examen." }),
-    crear("button", { type: "button", class: "boton", onclick: deshacerJustificacion }, "Deshacer"),
+  const espera = crear(
+    "p",
+    { class: "nota-al-pie", texto: "Cuando tengas todas tus notas podrás ingresar aquí la nota del examen final." },
   );
+  const normal = crear("div", { class: "examen-normal" }, espera, campo);
 
-  const tarjeta = crear("section", { class: "tarjeta examen" }, crear("h3", { texto: "Examen" }), normal, justificada);
-  panel.examen = { tarjeta, nota, necesaria, campo, espera, justificar, normal, justificada };
+  const tarjeta = crear("section", { class: "tarjeta examen" }, crear("h3", { texto: "Examen final" }), normal);
+  panel.examen = { tarjeta, nota, necesaria, campo, espera };
   return tarjeta;
 }
 
@@ -524,14 +576,23 @@ function aplicarVista(vista) {
 
   if (panel.examen) {
     const x = panel.examen;
-    x.tarjeta.hidden = !(resultado.faltaJustificada || resultado.examen || resultado.puedeJustificar);
-    x.justificada.hidden = !resultado.faltaJustificada;
-    x.normal.hidden = resultado.faltaJustificada;
+    x.tarjeta.hidden = !(resultado.examen || resultado.estado === "examen");
     x.espera.hidden = Boolean(resultado.examen);
     x.campo.hidden = !resultado.examen;
     x.necesaria.textContent = resultado.examen ? `Nota mínima para aprobar: ${resultado.examen.necesaria}` : "";
-    x.justificar.hidden = !resultado.puedeJustificar;
     if (document.activeElement !== x.nota) x.nota.value = vista.examen.nota;
+  }
+
+  for (const evaluacion of vista.evaluaciones) {
+    const fila = $(`#contenido [data-evaluacion-id="${evaluacion.id}"]`);
+    const marca = fila?.querySelector(".marca-justificada");
+    const accion = fila?.querySelector("[data-inasistencia-action]");
+    if (marca) marca.hidden = !evaluacion.inasistenciaJustificada;
+    if (accion) {
+      accion.hidden = !evaluacion.puedeJustificarInasistencia && !evaluacion.inasistenciaJustificada;
+      accion.dataset.justificada = String(evaluacion.inasistenciaJustificada);
+      accion.textContent = evaluacion.inasistenciaJustificada ? "Deshacer" : "Justificar inasistencia";
+    }
   }
 
   if (panel.total) {
@@ -541,7 +602,26 @@ function aplicarVista(vista) {
   }
   if (panel.restaurar) panel.restaurar.disabled = !vista.asignatura.ponderacionModificada;
 
-  actualizarLateral(vista);
+  const notaInvalida = $("#contenido .campo--nota[aria-invalid='true']");
+  if (notaInvalida) {
+    e.tarjeta.className = "tarjeta estado estado--gris";
+    e.valor.textContent = "–";
+    e.bloqueFinal.hidden = true;
+    e.valorFinal.textContent = "";
+    e.titulo.className = "chip";
+    e.titulo.textContent = "Corrige la nota";
+    e.mensaje.textContent = "No se puede calcular el promedio mientras haya una nota inválida.";
+    const resumen = estado.resumenes.find((item) => item.id === vista.asignatura.id);
+    if (resumen) {
+      resumen.color = "gris";
+      resumen.titulo = "Corrige la nota";
+      resumen.promedio = "";
+      const boton = $(`.asignatura-boton[data-id="${resumen.id}"]`);
+      if (boton) boton.parentElement.replaceWith(itemAsignatura(resumen));
+    }
+  } else {
+    actualizarLateral(vista);
+  }
 }
 
 // ---------- Acciones ----------
@@ -587,16 +667,19 @@ async function eliminarEvaluacion(evaluacionId, nombre) {
   if (vista) renderAsignatura(vista);
 }
 
-async function justificarFalta() {
-  const seguro = await confirmar("¿Estás seguro de que no vas a dar examen? El cálculo del promedio será sin dar el examen.");
-  if (!seguro) return;
-  const vista = await intentar(() => api.justificarFalta(estado.asignaturaId, true));
-  if (vista) renderAsignatura(vista);
-}
-
-async function deshacerJustificacion() {
-  const vista = await intentar(() => api.justificarFalta(estado.asignaturaId, false));
-  if (vista) renderAsignatura(vista);
+async function cambiarJustificacionInasistencia(evaluacionId, justificada) {
+  const mensaje = justificada
+    ? "¿Confirmas que esta nota 1,0 corresponde a una prueba inasistida? La nota 1,0 se conservará en la presentación (75 %) y el examen final valdrá el 25 % restante."
+    : "¿Quieres quitar la justificación de inasistencia de esta prueba?";
+  if (!(await confirmar(mensaje, justificada ? "Justificar inasistencia" : "Quitar justificación"))) return;
+  const respuesta = await intentar(() => api.justificarInasistencia(evaluacionId, justificada));
+  if (!respuesta) return;
+  if (!respuesta.valida) {
+    aviso(respuesta.mensaje);
+    if (respuesta.vista) renderAsignatura(respuesta.vista);
+    return;
+  }
+  renderAsignatura(respuesta.vista);
 }
 
 // ---------- Inicio ----------

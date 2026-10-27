@@ -11,7 +11,6 @@ function crearServicio(bd) {
       tipo: asignatura.tipo,
       evaluaciones: asignatura.evaluaciones,
       notaExamen: asignatura.notaExamen,
-      faltaJustificada: asignatura.faltaJustificada,
     });
   }
 
@@ -24,13 +23,25 @@ function crearServicio(bd) {
     );
   }
 
-  function resultadoParaMostrar(resultado) {
+  function resultadoParaMostrar(resultado, evaluaciones) {
     const nota = calculos.formatearNota;
+    let mensaje = resultado.mensaje;
+    if (resultado.estado === "en-curso" && resultado.notaNecesaria !== null) {
+      const pendientes = evaluaciones.filter((evaluacion) => evaluacion.nota === null);
+      const ultimas = pendientes.slice(-2);
+      const detalle = ultimas
+        .map((evaluacion) => `${evaluacion.nombre}: ${nota(resultado.notaNecesaria)}`)
+        .join(" y ");
+      if (detalle) {
+        const cantidad = ultimas.length === 1 ? "la última pendiente es" : "las últimas dos pendientes son";
+        mensaje += ` Si obtienes la misma nota en todas las pendientes, ${cantidad}: ${detalle}.`;
+      }
+    }
     return {
       estado: resultado.estado,
       color: resultado.color,
       titulo: resultado.titulo,
-      mensaje: resultado.mensaje,
+      mensaje,
       completo: resultado.completo,
       promedio: nota(resultado.promedio),
       notaNecesaria: nota(resultado.notaNecesaria),
@@ -38,8 +49,6 @@ function crearServicio(bd) {
         necesaria: nota(resultado.examen.necesaria),
         final: nota(resultado.examen.final),
       },
-      puedeJustificar: resultado.puedeJustificar,
-      faltaJustificada: resultado.faltaJustificada,
     };
   }
 
@@ -47,6 +56,9 @@ function crearServicio(bd) {
   function vista(asignaturaId) {
     const asignatura = bd.asignatura(asignaturaId);
     if (!asignatura) return null;
+    const calculo = calcular(asignatura);
+    const promedioBajoEximicion =
+      calculo.completo && calculos.notaAcumulada(asignatura.evaluaciones) < calculos.EXIMIRSE;
     return {
       asignatura: {
         id: asignatura.id,
@@ -58,25 +70,34 @@ function crearServicio(bd) {
         siempreLibre: asignatura.siempreLibre,
         ponderacionModificada: ponderacionModificada(asignatura),
       },
-      evaluaciones: asignatura.evaluaciones.map((evaluacion) => ({
-        id: evaluacion.id,
-        nombre: evaluacion.nombre,
-        porcentaje: evaluacion.porcentaje,
-        nota: calculos.formatearNota(evaluacion.nota),
-      })),
+      evaluaciones: asignatura.evaluaciones.map((evaluacion) => {
+        const inasistenciaJustificada = evaluacion.inasistencia_justificada === 1;
+        const puedeJustificarInasistencia =
+          asignatura.tipo === "lectiva" &&
+          promedioBajoEximicion &&
+          evaluacion.nota === calculos.NOTA_MINIMA &&
+          !inasistenciaJustificada;
+        return {
+          id: evaluacion.id,
+          nombre: evaluacion.nombre,
+          porcentaje: evaluacion.porcentaje,
+          nota: calculos.formatearNota(evaluacion.nota),
+          inasistenciaJustificada,
+          puedeJustificarInasistencia,
+        };
+      }),
       porcentajeTotal: calculos.sumaPorcentajes(asignatura.evaluaciones),
       examen: {
         nota: calculos.formatearNota(asignatura.notaExamen),
-        faltaJustificada: asignatura.faltaJustificada,
       },
-      resultado: resultadoParaMostrar(calcular(asignatura)),
+      resultado: resultadoParaMostrar(calculo, asignatura.evaluaciones),
     };
   }
 
   /** Resumen corto de una asignatura para la barra lateral y la portada del semestre. */
   function resumen(asignaturaId) {
     const asignatura = bd.asignatura(asignaturaId);
-    const resultado = resultadoParaMostrar(calcular(asignatura));
+    const resultado = resultadoParaMostrar(calcular(asignatura), asignatura.evaluaciones);
     return {
       id: asignatura.id,
       nombre: asignatura.nombre,
@@ -111,7 +132,12 @@ function crearServicio(bd) {
     guardarNota(evaluacionId, texto) {
       const asignaturaId = bd.asignaturaDeEvaluacion(evaluacionId);
       const validacion = calculos.validarNota(texto);
-      if (validacion.valida) bd.guardarNota(evaluacionId, validacion.valor);
+      if (validacion.valida) {
+        bd.guardarNota(evaluacionId, validacion.valor);
+        if (validacion.valor !== calculos.NOTA_MINIMA) {
+          bd.guardarInasistenciaJustificada(evaluacionId, false);
+        }
+      }
       return respuesta(validacion, asignaturaId);
     },
 
@@ -121,9 +147,25 @@ function crearServicio(bd) {
       return respuesta(validacion, asignaturaId);
     },
 
-    justificarFalta(asignaturaId, justificada) {
-      bd.guardarFaltaJustificada(asignaturaId, justificada);
-      return vista(asignaturaId);
+    justificarInasistencia(evaluacionId, justificada) {
+      const asignaturaId = bd.asignaturaDeEvaluacion(evaluacionId);
+      const asignatura = asignaturaId === null ? null : bd.asignatura(asignaturaId);
+      if (!asignatura) return { valida: false, mensaje: "No se encontró la evaluación.", vista: null };
+      const actual = vista(asignaturaId);
+      if (
+        justificada &&
+        !actual.evaluaciones.find(
+          (evaluacion) => evaluacion.id === evaluacionId && evaluacion.puedeJustificarInasistencia,
+        )
+      ) {
+        return {
+          valida: false,
+          mensaje: "Solo puedes justificar una prueba con nota 1,0 en una lectiva completa cuyo promedio quede bajo el umbral de eximición.",
+          vista: actual,
+        };
+      }
+      bd.guardarInasistenciaJustificada(evaluacionId, justificada);
+      return { valida: true, mensaje: "", vista: vista(asignaturaId) };
     },
 
     /** Al desactivar la ponderación libre se vuelve a la original (los electivos siempre son libres). */

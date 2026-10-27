@@ -672,12 +672,33 @@ p {
 }
 
 .tabla .col-accion {
-  width: 48px;
+  width: 1%;
   text-align: center;
 }
 
 .nombre-evaluacion {
   font-weight: 600;
+}
+
+.marca-justificada {
+  display: block;
+  margin-top: 3px;
+  color: var(--texto-suave);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.acciones-evaluacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.boton--pequeno {
+  padding: 5px 8px;
+  font-size: 12px;
 }
 
 .tabla tr:has(+ .fila-error:not([hidden])) td {
@@ -810,7 +831,6 @@ p {
 /* Examen */
 
 .examen-normal,
-.examen-justificada,
 .examen-campo {
   display: flex;
   flex-direction: column;

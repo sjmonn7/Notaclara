@@ -52,7 +52,8 @@ function registrarAcciones(servicio) {
     "evaluacion:agregar": (asignaturaId) => servicio.agregarEvaluacion(asignaturaId),
     "evaluacion:eliminar": (evaluacionId) => servicio.eliminarEvaluacion(evaluacionId),
     "examen:nota": (asignaturaId, texto) => servicio.guardarNotaExamen(asignaturaId, texto),
-    "examen:justificar": (asignaturaId, justificada) => servicio.justificarFalta(asignaturaId, justificada),
+    "inasistencia:justificar": (evaluacionId, justificada) =>
+      servicio.justificarInasistencia(evaluacionId, justificada),
     "ponderacion:libre": (asignaturaId, libre) => servicio.cambiarPonderacionLibre(asignaturaId, libre),
     "ponderacion:restaurar": (asignaturaId) => servicio.restaurarPonderacion(asignaturaId),
   };
