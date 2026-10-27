@@ -1,6 +1,18 @@
-.env
-__pycache__/
+# Dependencias
+node_modules/
+
+# Salidas de electron-builder (instalador y archivos intermedios)
+build/
+dist/
+
+# Restos de la versión en Python
 venv/
-.env
-venv/
+.venv/
+.venv-1/
 __pycache__/
+.env
+
+# Sistema
+Thumbs.db
+.DS_Store
+*.log
