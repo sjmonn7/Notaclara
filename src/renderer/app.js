@@ -65,6 +65,68 @@ function aviso(texto) {
   temporizadorAviso = setTimeout(() => caja.classList.remove("aviso--visible"), 4000);
 }
 
+function configurarEntradaNumerica(input, formato, maxLength) {
+  let ultimoPermitido = input.value;
+  const normalizar = (texto) => {
+    let salida = "";
+    let separador = false;
+    let decimales = 0;
+    for (const caracter of texto) {
+      if (/\d/.test(caracter)) {
+        if (separador && decimales === 1) continue;
+        salida += caracter;
+        if (separador) decimales += 1;
+      } else if (formato === "nota" && /[.,]/.test(caracter) && !separador) {
+        salida += caracter;
+        separador = true;
+      }
+    }
+    return salida.slice(0, maxLength);
+  };
+  const permitido = (texto) =>
+    formato === "nota"
+      ? /^(?:[1-6](?:[.,]\d?)?|7(?:[.,]0?)?)?$/.test(texto)
+      : /^\d{0,3}$/.test(texto) && (texto === "" || Number(texto) <= 100);
+  const insertar = (evento, texto) => {
+    const inicio = input.selectionStart;
+    const fin = input.selectionEnd;
+    const siguiente = `${input.value.slice(0, inicio)}${texto}${input.value.slice(fin)}`;
+    if (!permitido(siguiente)) evento.preventDefault();
+  };
+
+  input.addEventListener("beforeinput", (evento) => {
+    if (evento.inputType.startsWith("insert") && evento.data !== null) insertar(evento, evento.data);
+  });
+  input.addEventListener("paste", (evento) => {
+    const texto = evento.clipboardData?.getData("text/plain");
+    if (texto !== undefined) insertar(evento, texto);
+  });
+  input.addEventListener("drop", (evento) => {
+    const texto = evento.dataTransfer?.getData("text/plain");
+    if (texto !== undefined) insertar(evento, texto);
+  });
+
+  input.addEventListener("input", () => {
+    const original = input.value;
+    const cursor = input.selectionStart;
+    if (permitido(original)) {
+      ultimoPermitido = original;
+      return;
+    }
+    const normalizado = normalizar(original);
+    const digitosOriginales = (original.match(/\d/g) ?? []).length;
+    const digitosNormalizados = (normalizado.match(/\d/g) ?? []).length;
+    const separadoresOriginales = (original.match(/[.,]/g) ?? []).length;
+    const separadoresNormalizados = (normalizado.match(/[.,]/g) ?? []).length;
+    const conservaNumeros = digitosOriginales === digitosNormalizados && separadoresOriginales === separadoresNormalizados;
+    const siguiente = conservaNumeros && permitido(normalizado) ? normalizado : ultimoPermitido;
+    const cursorNuevo = Math.min(normalizar(original.slice(0, cursor)).length, siguiente.length);
+    input.value = siguiente;
+    input.setSelectionRange(cursorNuevo, cursorNuevo);
+    ultimoPermitido = siguiente;
+  });
+}
+
 let temporizadorGuardado = null;
 
 function marcarGuardado() {
@@ -385,6 +447,7 @@ function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarIna
     "aria-label": `Nota de ${evaluacion.nombre}`,
     value: evaluacion.nota,
   });
+  configurarEntradaNumerica(nota, "nota", 5);
   conectarCampo(nota, (texto) => api.guardarNota(evaluacion.id, texto), (mensaje) => mostrarError("nota", nota, mensaje), (vista) => {
     return vista.evaluaciones.find((item) => item.id === evaluacion.id)?.nota;
   });
@@ -410,6 +473,7 @@ function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarIna
       "aria-label": `Porcentaje de ${evaluacion.nombre}`,
       value: String(evaluacion.porcentaje),
     });
+    configurarEntradaNumerica(porcentaje, "porcentaje", 3);
     conectarCampo(porcentaje, (texto) => api.cambiarPorcentaje(evaluacion.id, texto), (mensaje) => mostrarError("porcentaje", porcentaje, mensaje));
 
     celdaNombre = crear(
@@ -526,6 +590,7 @@ function seccionExamen(vista) {
     id: "nota-examen",
     value: vista.examen.nota,
   });
+  configurarEntradaNumerica(nota, "nota", 5);
   const error = crear("p", { class: "error", hidden: true });
   conectarCampo(
     nota,

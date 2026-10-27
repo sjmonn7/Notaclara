@@ -134,10 +134,10 @@ La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real
 
 ### Validación de notas
 
-- Se acepta coma o punto (`6,3` y `6.3`). Las notas se muestran siempre con coma y un decimal.
+- Los campos de nota y examen solo permiten números entre 1,0 y 7,0, con hasta un decimal; se acepta coma o punto (`6,3` y `6.3`) y se muestran siempre con coma y un decimal.
 - Fuera de 1,0 a 7,0 → "Nota inválida. Ingrese una nota entre 1,0 y 7,0."
 - Más de un decimal (`6,34`) → "Nota inválida. Ingrese un número con UN solo decimal."
-- En ponderación libre los porcentajes son enteros de 0 a 100. Si no suman 100 % no se calcula el estado y se muestra "Los porcentajes deben sumar 100%."
+- En ponderación libre, los campos de porcentaje solo permiten números enteros de 0 a 100. Si no suman 100 % no se calcula el estado y se muestra "Los porcentajes deben sumar 100%."
 
 ## Estructura de carpetas
 
