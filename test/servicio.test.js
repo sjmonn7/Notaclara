@@ -54,7 +54,12 @@ test("abrir el archivo de nuevo conserva las notas y no duplica asignaturas", (t
 
 test("migra una base anterior sin perder notas ni la columna antigua del examen", (t) => {
   const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), "notaclara-migracion-"));
-  t.after(() => fs.rmSync(carpeta, { recursive: true, force: true }));
+  let bd = null;
+  // Windows no deja borrar el archivo mientras esté abierto: primero se cierra
+  t.after(() => {
+    bd?.cerrar();
+    fs.rmSync(carpeta, { recursive: true, force: true });
+  });
   const ruta = path.join(carpeta, "notaclara.sqlite");
   const anterior = new Database(ruta);
   anterior.exec(`
@@ -84,8 +89,7 @@ test("migra una base anterior sin perder notas ni la columna antigua del examen"
   `);
   anterior.close();
 
-  const bd = abrirBaseDatos(ruta);
-  t.after(() => bd.cerrar());
+  bd = abrirBaseDatos(ruta);
   const servicio = crearServicio(bd);
   const vista = servicio.vista(1);
   assert.equal(vista.evaluaciones[0].nota, "1,0");
@@ -95,6 +99,27 @@ test("migra una base anterior sin perder notas ni la columna antigua del examen"
     bd.asignatura(1).evaluaciones[0].inasistencia_justificada,
     0,
   );
+});
+
+test("una base con varias pruebas justificadas en la misma asignatura conserva solo la primera", (t) => {
+  const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), "notaclara-varias-"));
+  let bd = null;
+  t.after(() => {
+    bd?.cerrar();
+    fs.rmSync(carpeta, { recursive: true, force: true });
+  });
+  const ruta = path.join(carpeta, "notaclara.sqlite");
+
+  bd = abrirBaseDatos(ruta);
+  const { id } = buscar(crearServicio(bd), "Administración").asignatura;
+  const { evaluaciones } = bd.asignatura(id);
+  bd.guardarInasistenciaJustificada(evaluaciones[1].id, true);
+  bd.guardarInasistenciaJustificada(evaluaciones[2].id, true);
+  bd.cerrar();
+
+  bd = abrirBaseDatos(ruta);
+  const marcas = bd.asignatura(id).evaluaciones.map((evaluacion) => evaluacion.inasistencia_justificada);
+  assert.deepEqual(marcas, [0, 1, 0, 0]);
 });
 
 test("guarda notas válidas y rechaza notas de dos decimales sin guardarlas", () => {
@@ -123,15 +148,13 @@ test("guarda notas válidas y rechaza notas de dos decimales sin guardarlas", ()
   assert.equal(r.vista.evaluaciones[0].nota, "");
 });
 
-test("el mensaje destaca las dos últimas evaluaciones pendientes y la nota requerida", () => {
+test("el mensaje dice en una frase la nota que falta y en qué evaluaciones", () => {
   const { servicio } = nuevo();
   const vista = buscar(servicio, "Formación Ciudadana");
   servicio.guardarNota(vista.evaluaciones[0].id, "3,0");
 
   const resultado = servicio.vista(vista.asignatura.id).resultado;
-  assert.match(resultado.mensaje, new RegExp(`EV3: ${resultado.notaNecesaria} y EV4: ${resultado.notaNecesaria}`));
-  assert.doesNotMatch(resultado.mensaje, /EV2:/);
-  assert.match(resultado.mensaje, /misma nota en todas las pendientes/);
+  assert.equal(resultado.mensaje, `Para aprobar necesitas un ${resultado.notaNecesaria} en EV2, EV3 y EV4.`);
 });
 
 test("el mensaje nombra la única evaluación pendiente", () => {
@@ -142,66 +165,163 @@ test("el mensaje nombra la única evaluación pendiente", () => {
   }
 
   const resultado = servicio.vista(vista.asignatura.id).resultado;
-  assert.match(
-    resultado.mensaje,
-    new RegExp(`la última pendiente es: EV4: ${resultado.notaNecesaria}`),
-  );
+  assert.equal(resultado.mensaje, `Para aprobar necesitas un ${resultado.notaNecesaria} en EV4.`);
 });
 
-test("lectiva: conserva el 1,0 justificado y agrega una sola nota de examen final", () => {
+test("en una lectiva el mensaje habla de eximirse", () => {
   const { servicio } = nuevo();
-  let vista = buscar(servicio, "Administración");
-  const id = vista.asignatura.id;
+  const vista = buscar(servicio, "Administración");
+  for (const evaluacion of vista.evaluaciones.slice(0, 3)) {
+    servicio.guardarNota(evaluacion.id, "4,5");
+  }
+
+  const resultado = servicio.vista(vista.asignatura.id).resultado;
+  assert.equal(resultado.mensaje, `Para eximirte necesitas un ${resultado.notaNecesaria} en EV4.`);
+});
+
+test("con más de tres evaluaciones pendientes no las nombra una por una", () => {
+  const { servicio } = nuevo();
+  const vista = buscar(servicio, "Resolución de Problemas en Álgebra");
+  servicio.guardarNota(vista.evaluaciones[0].id, "4,0");
+
+  const resultado = servicio.vista(vista.asignatura.id).resultado;
+  assert.equal(resultado.mensaje, `Para eximirte necesitas un ${resultado.notaNecesaria} en cada evaluación que falta.`);
+});
+
+/** Administración (lectiva, 20/25/25/30) con 1,0 en EV1 y 5,5 en el resto: acumulada 4,6, va a examen. */
+function administracionConFalta(servicio) {
+  const vista = buscar(servicio, "Administración");
   servicio.guardarNota(vista.evaluaciones[0].id, "1,0");
   for (const evaluacion of vista.evaluaciones.slice(1)) servicio.guardarNota(evaluacion.id, "5,5");
+  return servicio.vista(vista.asignatura.id);
+}
 
-  vista = servicio.vista(id);
+const MENSAJE_BLOQUEADA =
+  "Esta nota se completó con la nota del examen. Para modificarla, borra primero la nota del examen.";
+
+test("lectiva: justificar la falta deja el estado en morado esperando el examen", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
   assert.equal(vista.resultado.promedio, "4,6");
   assert.equal(vista.evaluaciones[0].puedeJustificarInasistencia, true);
   assert.equal(vista.evaluaciones[1].puedeJustificarInasistencia, false);
 
-  let respuesta = servicio.justificarInasistencia(vista.evaluaciones[0].id, true);
+  const respuesta = servicio.justificarInasistencia(vista.evaluaciones[0].id, true);
   assert.equal(respuesta.valida, true);
-  assert.equal(respuesta.vista.evaluaciones[0].nota, "1,0");
-  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, true);
-  assert.equal(respuesta.vista.resultado.promedio, "4,6");
-  assert.equal(respuesta.vista.resultado.examen.necesaria, "2,0");
-
-  respuesta = servicio.guardarNotaExamen(id, "2,0");
-  assert.equal(respuesta.vista.resultado.titulo, "Aprobado");
-  assert.equal(respuesta.vista.resultado.examen.final, "4,0");
-  assert.equal(respuesta.vista.evaluaciones[0].nota, "1,0");
-  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, true);
-
-  respuesta = servicio.justificarInasistencia(vista.evaluaciones[0].id, false);
-  assert.equal(respuesta.valida, true);
-  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, false);
+  const { resultado, evaluaciones } = respuesta.vista;
+  assert.equal(resultado.estado, "justificada");
+  assert.equal(resultado.color, "morado");
+  assert.equal(resultado.titulo, "Falta justificada");
+  assert.equal(
+    resultado.mensaje,
+    "Ya justificaste la falta a la prueba. Coloca la nota del examen final para calcular el promedio final.",
+  );
+  assert.equal(resultado.examen.necesaria, "1,7");
+  assert.equal(evaluaciones[0].nota, "1,0");
+  assert.equal(evaluaciones[0].inasistenciaJustificada, true);
+  assert.equal(evaluaciones[0].bloqueadaPorExamen, false);
+  assert.equal(servicio.resumen(vista.asignatura.id).color, "morado");
 });
 
-test("permite justificar varias notas 1,0 por separado y no adelanta el examen", () => {
+test("lectiva: con examen la prueba justificada toma esa nota y queda bloqueada", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
+  const id = vista.asignatura.id;
+  const prueba = vista.evaluaciones[0].id;
+  servicio.justificarInasistencia(prueba, true);
+
+  // presentación = 4,6 + (2,0 − 1,0) × 0,2 = 4,8 ; final = 4,8 × 0,75 + 2,0 × 0,25 = 4,1
+  let respuesta = servicio.guardarNotaExamen(id, "2,0");
+  assert.equal(respuesta.vista.resultado.titulo, "Aprobado");
+  assert.equal(respuesta.vista.resultado.promedio, "4,8");
+  assert.equal(respuesta.vista.resultado.examen.final, "4,1");
+  assert.equal(respuesta.vista.evaluaciones[0].nota, "2,0");
+  assert.equal(respuesta.vista.evaluaciones[0].bloqueadaPorExamen, true);
+
+  // La casilla bloqueada no acepta cambios y la nota guardada sigue siendo 1,0
+  respuesta = servicio.guardarNota(prueba, "6,0");
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.mensaje, MENSAJE_BLOQUEADA);
+  assert.equal(servicio.vista(id).evaluaciones[0].inasistenciaJustificada, true);
+
+  // Quitar la justificación se rechaza mientras haya nota de examen
+  respuesta = servicio.justificarInasistencia(prueba, false);
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.mensaje, MENSAJE_BLOQUEADA);
+  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, true);
+});
+
+test("lectiva: al borrar el examen vuelve el 1,0 y el estado morado", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
+  const id = vista.asignatura.id;
+  const prueba = vista.evaluaciones[0].id;
+  servicio.justificarInasistencia(prueba, true);
+  servicio.guardarNotaExamen(id, "6,0");
+
+  const actual = servicio.guardarNotaExamen(id, "").vista;
+  assert.equal(actual.resultado.estado, "justificada");
+  assert.equal(actual.resultado.color, "morado");
+  assert.equal(actual.evaluaciones[0].nota, "1,0");
+  assert.equal(actual.evaluaciones[0].bloqueadaPorExamen, false);
+
+  // Sin examen sí se puede quitar la justificación, y todo vuelve a como estaba
+  const respuesta = servicio.justificarInasistencia(prueba, false);
+  assert.equal(respuesta.valida, true);
+  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, false);
+  assert.equal(respuesta.vista.resultado.estado, "examen");
+  assert.equal(respuesta.vista.resultado.promedio, "4,6");
+});
+
+test("solo se puede justificar una prueba por asignatura", () => {
   const { servicio } = nuevo();
   let vista = buscar(servicio, "Administración");
   const id = vista.asignatura.id;
   const [primera, segunda, ...restantes] = vista.evaluaciones;
 
   servicio.guardarNota(primera.id, "1,0");
-  let respuesta = servicio.justificarInasistencia(primera.id, true);
-  assert.equal(respuesta.valida, false);
-  assert.equal(respuesta.vista.evaluaciones[0].puedeJustificarInasistencia, false);
+  // Con evaluaciones pendientes todavía no se puede justificar
+  assert.equal(servicio.justificarInasistencia(primera.id, true).valida, false);
 
   servicio.guardarNota(segunda.id, "1,0");
   for (const evaluacion of restantes) servicio.guardarNota(evaluacion.id, "5,5");
-
   vista = servicio.vista(id);
   assert.equal(vista.evaluaciones[0].puedeJustificarInasistencia, true);
   assert.equal(vista.evaluaciones[1].puedeJustificarInasistencia, true);
-  assert.equal(servicio.justificarInasistencia(primera.id, true).valida, true);
-  respuesta = servicio.justificarInasistencia(segunda.id, true);
+
+  const respuesta = servicio.justificarInasistencia(primera.id, true);
   assert.equal(respuesta.valida, true);
-  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, true);
-  assert.equal(respuesta.vista.evaluaciones[1].inasistenciaJustificada, true);
-  assert.equal(respuesta.vista.examen.nota, "");
-  assert.equal(respuesta.vista.resultado.examen.necesaria, "5,3");
+  assert.equal(respuesta.vista.evaluaciones[1].puedeJustificarInasistencia, false);
+
+  const otra = servicio.justificarInasistencia(segunda.id, true);
+  assert.equal(otra.valida, false);
+  assert.equal(otra.vista.evaluaciones[1].inasistenciaJustificada, false);
+});
+
+test("prácticas: no se ofrece justificar y el 1,0 queda tal cual", () => {
+  const { servicio } = nuevo();
+  let vista = buscar(servicio, "Formación Ciudadana");
+  servicio.guardarNota(vista.evaluaciones[0].id, "1,0");
+  for (const evaluacion of vista.evaluaciones.slice(1)) servicio.guardarNota(evaluacion.id, "3,0");
+
+  vista = servicio.vista(vista.asignatura.id);
+  assert.equal(vista.asignatura.tipo, "practica");
+  assert.ok(vista.evaluaciones.every((evaluacion) => !evaluacion.puedeJustificarInasistencia));
+  const respuesta = servicio.justificarInasistencia(vista.evaluaciones[0].id, true);
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, false);
+  assert.equal(respuesta.vista.resultado.estado, "reprobado");
+});
+
+test("si la acumulada sube a 4,945 o más se quita la justificación", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
+  servicio.justificarInasistencia(vista.evaluaciones[0].id, true);
+
+  // 1,0×0,20 + 7,0×0,25 + 5,5×0,25 + 5,5×0,30 = 4,975
+  const actual = servicio.guardarNota(vista.evaluaciones[1].id, "7,0").vista;
+  assert.equal(actual.evaluaciones[0].inasistenciaJustificada, false);
+  assert.equal(actual.resultado.estado, "eximido");
 });
 
 test("no ofrece justificar el 1,0 si el promedio completo llega a 4,945", () => {
@@ -218,7 +338,7 @@ test("no ofrece justificar el 1,0 si el promedio completo llega a 4,945", () => 
   assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, false);
 });
 
-test("editar una evaluación ya no mantiene una justificación de inasistencia obsoleta", () => {
+test("cambiar la nota de la prueba justificada quita la justificación", () => {
   const { servicio } = nuevo();
   let vista = buscar(servicio, "Administración");
   servicio.guardarNota(vista.evaluaciones[0].id, "1,0");

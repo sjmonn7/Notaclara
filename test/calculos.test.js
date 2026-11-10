@@ -267,33 +267,80 @@ test.describe("lectiva", () => {
   });
 });
 
-// ---------- Prueba inasistida ----------
+// ---------- Falta justificada a una prueba ----------
 
-test.describe("prueba inasistida", () => {
-  test("mantiene el 1,0 en la presentación y agrega el examen como 25 %", () => {
-    const r = calcular("lectiva", [
-      ["1,0", 20],
-      ["5,5", 25],
-      ["5,5", 25],
-      ["5,5", 30],
-    ]);
-    assert.equal(nota(r.promedio), "4,6");
-    assert.equal(nota(r.examen.necesaria), "2,0");
-    assert.equal(r.estado, "examen");
+/** Como calcular(), pero marca como justificada la primera evaluación. */
+function calcularJustificada(tipo, pares, notaExamen = null) {
+  const lista = evaluaciones(...pares);
+  lista[0].justificada = true;
+  return c.calcularAsignatura({ tipo, evaluaciones: lista, notaExamen });
+}
 
-    const conExamen = calcular(
-      "lectiva",
-      [
-        ["1,0", 20],
-        ["5,5", 25],
-        ["5,5", 25],
-        ["5,5", 30],
-      ],
-      { notaExamen: 23 },
+test.describe("falta justificada a una prueba", () => {
+  const EJEMPLO = [["1,0", 30], ["4,0", 30], ["5,0", 40]];
+
+  test("sin nota de examen queda en morado esperando el examen", () => {
+    const r = calcularJustificada("lectiva", EJEMPLO);
+    assert.equal(r.estado, "justificada");
+    assert.equal(r.color, "morado");
+    assert.equal(r.titulo, "Falta justificada");
+    assert.equal(
+      r.mensaje,
+      "Ya justificaste la falta a la prueba. Coloca la nota del examen final para calcular el promedio final.",
     );
-    assert.equal(nota(conExamen.promedio), "4,6");
-    assert.equal(nota(conExamen.examen.final), "4,0");
-    assert.equal(conExamen.titulo, "Aprobado");
+    assert.equal(nota(r.promedio), "3,5"); // el 1,0 sigue contando hasta que haya examen
+    assert.equal(r.examen.final, null);
+  });
+
+  test("el examen reemplaza al 1,0 en la presentación y vale el 25 %", () => {
+    // presentación = 6,0×0,3 + 4,0×0,3 + 5,0×0,4 = 5,0 ; final = 5,0×0,75 + 6,0×0,25 = 5,25 -> 5,3
+    const r = calcularJustificada("lectiva", EJEMPLO, 60);
+    assert.equal(nota(r.promedio), "5,0");
+    assert.equal(nota(r.examen.final), "5,3");
+    assert.equal(r.estado, "aprobado");
+    assert.equal(r.color, "verde");
+    assert.equal(r.mensaje, "Aprobaste con examen. Tu nota final es 5,3.");
+  });
+
+  test("con examen no hay eximición aunque la presentación nueva llegue a 5,0", () => {
+    const r = calcularJustificada("lectiva", EJEMPLO, 70);
+    assert.equal(r.estado, "aprobado");
+    assert.notEqual(r.estado, "eximido");
+  });
+
+  test("con examen insuficiente reprueba y muestra la nota final", () => {
+    const r = calcularJustificada("lectiva", EJEMPLO, 31);
+    // presentación 3,5 + 2,1×0,3 = 4,13 -> 4,1 ; final 4,1×0,75 + 3,1×0,25 = 3,85 -> 3,9
+    assert.equal(r.estado, "reprobado");
+    assert.equal(nota(r.examen.final), "3,9");
+  });
+
+  test("nota mínima de examen: se prueba nota por nota porque el examen cuenta dos veces", () => {
+    // 3,1 -> presentación 4,1 y final 3,85 (reprueba) ; 3,2 -> presentación 4,2 y final 3,95 (aprueba)
+    assert.equal(c.examenNecesarioJustificada(3500, 30), 32);
+    const r = calcularJustificada("lectiva", EJEMPLO);
+    assert.equal(nota(r.examen.necesaria), "3,2");
+    assert.equal(calcularJustificada("lectiva", EJEMPLO, 32).estado, "aprobado");
+  });
+
+  test("si ni con 7,0 en el examen alcanza, reprueba", () => {
+    // 1,0 en todo: con 7,0 la presentación sube a 1,6 y la final queda en 2,95
+    const r = calcularJustificada("lectiva", [["1,0", 10], ["1,0", 90]]);
+    assert.equal(c.examenNecesarioJustificada(1000, 10), null);
+    assert.equal(r.estado, "reprobado");
+    assert.equal(r.mensaje, "Aunque saques 7,0 en el examen, no alcanzas a aprobar.");
+  });
+
+  test("las prácticas ignoran la marca: el 1,0 queda tal cual", () => {
+    const r = calcularJustificada("practica", EJEMPLO, 60);
+    assert.deepEqual(r, calcular("practica", EJEMPLO));
+  });
+
+  test("sin la marca, el 1,0 sigue en la presentación como antes", () => {
+    const r = calcular("lectiva", EJEMPLO, { notaExamen: 60 });
+    // presentación 3,5 ; final 3,5×0,75 + 6,0×0,25 = 4,125 -> 4,1
+    assert.equal(nota(r.promedio), "3,5");
+    assert.equal(nota(r.examen.final), "4,1");
   });
 });
 

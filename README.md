@@ -13,9 +13,10 @@ Es una aplicación de escritorio para Windows hecha con Electron (HTML + CSS + J
   - **Verde**: aprobado o eximido.
   - **Amarillo**: va a examen (solo lectivas).
   - **Rojo**: reprobado.
+  - **Morado**: falta justificada a una prueba, esperando la nota del examen (solo lectivas).
   - **Gris**: todavía no hay notas (o faltan notas y aún no hay un resultado definido).
-- Calcula la nota mínima que se necesita en lo que falta para aprobar (prácticas) o para eximirse (lectivas). En las últimas dos evaluaciones pendientes muestra la nota de referencia, suponiendo que se obtiene la misma nota en todas las pendientes.
-- En una asignatura lectiva completa cuyo promedio de presentación queda bajo 4,945, permite justificar cada prueba inasistida que tenga un 1,0. La nota 1,0 se conserva dentro del 75 % de presentación; el examen final representa el 25 % restante. Cada prueba se puede desjustificar por separado.
+- Calcula la nota mínima que se necesita en lo que falta para aprobar (prácticas) o para eximirse (lectivas). Lo dice en una frase corta, por ejemplo: "Para eximirte necesitas un 6,1 en EV4." (nombra hasta 3 evaluaciones pendientes; si son más, dice "en cada evaluación que falta").
+- En una asignatura lectiva completa que va a examen, permite justificar la falta a **una** prueba con nota 1,0. Al ingresar la nota del examen, esa nota reemplaza al 1,0 en la presentación y además vale el 25 % de la nota final.
 - **Ponderación libre**: si las ponderaciones cambiaron durante el año, se pueden editar nombres y porcentajes, agregar y eliminar evaluaciones (como en la primera versión del proyecto) y volver a la ponderación original. Los electivos vienen siempre con ponderación libre (parten con 4 evaluaciones de 25 %).
 
 La interfaz está pensada para personas que no saben de informática: no muestra términos técnicos, fórmulas ni umbrales internos. Esos detalles están solo en este README.
@@ -124,12 +125,19 @@ La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real
   - Ejemplo: presentación 4,5 → (3,945 − 3,375) ÷ 0,25 = 2,28 → **2,3**. Con 2,3 la final es 3,95 (se ve 4,0, aprueba); con 2,2 es 3,925 (se ve 3,9, reprueba).
 - Con evaluaciones pendientes se muestra la nota mínima en lo pendiente para eximirse. Si eximirse ya es imposible → amarillo "Vas a examen". Si ni con 7,0 en todo lo pendiente y 7,0 en el examen alcanza → rojo "Reprobado".
 
-### Prueba inasistida
+### Falta justificada a una prueba
 
-- La opción aparece solo en asignaturas lectivas, cuando todas las evaluaciones tienen nota y el promedio de presentación sin redondear es menor que 4,945.
-- Solo se puede justificar una evaluación cuya nota sea 1,0. Si hay varias, cada una se marca o desmarca por separado.
-- La justificación no borra ni reemplaza el 1,0: la presentación completa (incluido ese 1,0) conserva su ponderación del 75 % y una sola nota de examen final del ramo aporta el 25 % restante.
-- Si el promedio llega a 4,945 o más, no se ofrece esta acción. En ramos prácticos no hay examen final.
+- El botón "Justificar falta a prueba" aparece solo en asignaturas lectivas, cuando todas las evaluaciones tienen nota, esa evaluación tiene exactamente 1,0 y la nota acumulada sin redondear es menor que 4,945 (va a examen). En prácticas no aparece y el 1,0 queda tal cual.
+- Solo se puede justificar **una** prueba por asignatura.
+- El 1,0 no se borra de la base de datos (sigue guardado como 10); el reemplazo se hace al calcular. Quitar la justificación deja todo como estaba.
+- Sin nota de examen: estado morado "Falta justificada", con la casilla del examen habilitada.
+- Con nota de examen E:
+  - Presentación = promedio ponderado usando E en lugar del 1,0, con redondeo chileno.
+  - Nota final = presentación × 0,75 + E × 0,25. No hay eximición aunque la presentación nueva llegue a 4,945, porque el examen ya se rindió.
+  - Ejemplo: 1,0 (30 %, justificada), 4,0 (30 %), 5,0 (40 %) y examen 6,0 → presentación 5,0 → final 5,25 → **5,3**.
+  - La casilla de la prueba muestra E y queda bloqueada, igual que "Quitar justificación". Para cambiarla hay que borrar primero la nota del examen.
+- Nota mínima de examen: como el examen cuenta dos veces, se prueba cada nota de 1,0 a 7,0 y se muestra la primera que aprueba. Si ninguna alcanza → rojo "Reprobado".
+- Si después otras notas suben la acumulada (con el 1,0) a 4,945 o más, la justificación se quita sola.
 - Al ingresar una nota inválida, el promedio y la nota final se ocultan hasta corregirla. La nota inválida no se guarda ni se usa en los cálculos.
 
 ### Validación de notas

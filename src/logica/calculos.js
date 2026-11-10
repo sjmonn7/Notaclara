@@ -145,14 +145,44 @@ function notaFinalConExamen(presentacion, examen) {
   return presentacion * PESO_PRESENTACION + examen * PESO_EXAMEN;
 }
 
+/**
+ * Presentación (décimas, redondeada) de una lectiva con falta justificada:
+ * la nota del examen reemplaza al 1,0 de la prueba justificada.
+ */
+function presentacionJustificada(acumulada, porcentajeJustificada, examen) {
+  return redondear(acumulada + (examen - NOTA_MINIMA) * porcentajeJustificada);
+}
+
+/**
+ * Nota mínima de examen (décimas) para aprobar con una falta justificada, o null si ni con 7,0 alcanza.
+ * El examen cuenta dos veces (reemplaza la prueba y vale el 25 %), así que se prueba nota por nota.
+ */
+function examenNecesarioJustificada(acumulada, porcentajeJustificada) {
+  for (let examen = NOTA_MINIMA; examen <= NOTA_MAXIMA; examen++) {
+    const presentacion = presentacionJustificada(acumulada, porcentajeJustificada, examen);
+    if (notaFinalConExamen(presentacion, examen) >= APROBAR) return examen;
+  }
+  return null;
+}
+
 // ---------- Estado de una asignatura ----------
 
-const COLOR = { aprobado: "verde", eximido: "verde", examen: "amarillo", reprobado: "rojo", "en-curso": "gris", "sin-notas": "gris", porcentajes: "gris" };
+const COLOR = {
+  aprobado: "verde",
+  eximido: "verde",
+  examen: "amarillo",
+  justificada: "morado",
+  reprobado: "rojo",
+  "en-curso": "gris",
+  "sin-notas": "gris",
+  porcentajes: "gris",
+};
 
 const TITULO = {
   aprobado: "Aprobado",
   eximido: "Eximido",
   examen: "Vas a examen",
+  justificada: "Falta justificada",
   reprobado: "Reprobado",
   "en-curso": "En curso",
   "sin-notas": "Sin notas",
@@ -178,7 +208,8 @@ function resultado(estado, mensaje, extra) {
  * Calcula el estado de una asignatura.
  * datos = {
  *   tipo: "practica" | "lectiva",
- *   evaluaciones: [{ porcentaje, nota }]   (nota en décimas o null si está pendiente)
+ *   evaluaciones: [{ porcentaje, nota, justificada }]   (nota en décimas o null si está pendiente;
+ *                  justificada: true en la prueba con 1,0 cuya falta se justificó, solo lectivas)
  *   notaExamen: décimas | null,
  * }
  * Todo lo numérico del resultado viene en décimas y ya redondeado.
@@ -199,7 +230,8 @@ function calcularAsignatura(datos) {
   };
 
   if (datos.tipo === "lectiva") {
-    return calcularLectiva(acumulada, evaluado, pendiente, datos.notaExamen ?? null, base);
+    const justificada = evaluaciones.find((evaluacion) => evaluacion.justificada && evaluacion.nota === NOTA_MINIMA);
+    return calcularLectiva(acumulada, evaluado, pendiente, datos.notaExamen ?? null, base, justificada ?? null);
   }
   return calcularSinExamen(acumulada, evaluado, pendiente, base);
 }
@@ -230,11 +262,14 @@ function calcularSinExamen(acumulada, evaluado, pendiente, base) {
 }
 
 /** Lectiva: se exime con 5,0; si no, va a examen (presentación 75 % + examen 25 %). */
-function calcularLectiva(acumulada, evaluado, pendiente, notaExamen, base) {
+function calcularLectiva(acumulada, evaluado, pendiente, notaExamen, base, justificada) {
   if (pendiente === 0) {
     const presentacion = redondear(acumulada);
     if (acumulada >= EXIMIRSE) {
       return resultado("eximido", "¡Felicitaciones! Te eximiste del examen y aprobaste la asignatura.", base);
+    }
+    if (justificada) {
+      return calcularJustificada(acumulada, justificada.porcentaje, notaExamen, base);
     }
 
     const necesaria = examenNecesario(presentacion);
@@ -288,6 +323,33 @@ function calcularLectiva(acumulada, evaluado, pendiente, notaExamen, base) {
   });
 }
 
+/**
+ * Lectiva completa con una falta justificada: la nota del examen reemplaza al 1,0 en la presentación
+ * y además vale el 25 % de la nota final. No hay eximición, porque el examen ya se rindió.
+ */
+function calcularJustificada(acumulada, porcentajeJustificada, notaExamen, base) {
+  const necesaria = examenNecesarioJustificada(acumulada, porcentajeJustificada);
+  const examen = { necesaria, nota: notaExamen, final: null };
+  if (notaExamen !== null) {
+    const presentacion = presentacionJustificada(acumulada, porcentajeJustificada, notaExamen);
+    const final = notaFinalConExamen(presentacion, notaExamen);
+    examen.final = redondear(final);
+    const extra = { ...base, promedio: presentacion, examen };
+    if (final >= APROBAR) {
+      return resultado("aprobado", `Aprobaste con examen. Tu nota final es ${formatearNota(examen.final)}.`, extra);
+    }
+    return resultado("reprobado", `Tu nota final con examen es ${formatearNota(examen.final)} y no alcanza para aprobar.`, extra);
+  }
+  if (necesaria === null) {
+    return resultado("reprobado", "Aunque saques 7,0 en el examen, no alcanzas a aprobar.", { ...base, examen });
+  }
+  return resultado(
+    "justificada",
+    "Ya justificaste la falta a la prueba. Coloca la nota del examen final para calcular el promedio final.",
+    { ...base, examen },
+  );
+}
+
 module.exports = {
   NOTA_MINIMA,
   NOTA_MAXIMA,
@@ -309,5 +371,7 @@ module.exports = {
   estadoNotaNecesaria,
   examenNecesario,
   notaFinalConExamen,
+  presentacionJustificada,
+  examenNecesarioJustificada,
   calcularAsignatura,
 };

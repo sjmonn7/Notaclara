@@ -16,6 +16,9 @@ let panel = null;
 
 const $ = (selector, raiz = document) => raiz.querySelector(selector);
 
+const MENSAJE_BLOQUEADA =
+  "Esta nota se completó con la nota del examen. Para modificarla, borra primero la nota del examen.";
+
 /** Crea un elemento. atributos: class, texto, on<evento>, y cualquier atributo HTML. */
 function crear(etiqueta, atributos = {}, ...hijos) {
   const elemento = document.createElement(etiqueta);
@@ -451,9 +454,13 @@ function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarIna
   conectarCampo(nota, (texto) => api.guardarNota(evaluacion.id, texto), (mensaje) => mostrarError("nota", nota, mensaje), (vista) => {
     return vista.evaluaciones.find((item) => item.id === evaluacion.id)?.nota;
   });
+  bloquearNota(nota, evaluacion.bloqueadaPorExamen);
+  nota.addEventListener("click", () => {
+    if (nota.readOnly) aviso(MENSAJE_BLOQUEADA);
+  });
   const marcaJustificada = crear("span", {
     class: "marca-justificada",
-    texto: "Inasistencia justificada",
+    texto: "Falta justificada",
     hidden: !evaluacion.inasistenciaJustificada,
   });
 
@@ -506,24 +513,18 @@ function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarIna
 
   const acciones = [];
   if (permiteJustificarInasistencia) {
-    acciones.push(
-      crear(
-        "button",
-        {
-          type: "button",
-          class: "boton boton--pequeno",
-          "data-inasistencia-action": evaluacion.id,
-          "data-justificada": String(evaluacion.inasistenciaJustificada),
-          hidden: !evaluacion.puedeJustificarInasistencia && !evaluacion.inasistenciaJustificada,
-          onclick: (evento) =>
-            cambiarJustificacionInasistencia(
-              evaluacion.id,
-              evento.currentTarget.dataset.justificada !== "true",
-            ),
-        },
-        evaluacion.inasistenciaJustificada ? "Deshacer" : "Justificar inasistencia",
-      ),
-    );
+    const boton = crear("button", {
+      type: "button",
+      class: "boton boton--pequeno",
+      "data-inasistencia-action": evaluacion.id,
+      onclick: (evento) =>
+        cambiarJustificacionInasistencia(
+          evaluacion.id,
+          evento.currentTarget.dataset.justificada !== "true",
+        ),
+    });
+    actualizarBotonJustificar(boton, evaluacion);
+    acciones.push(boton);
   }
   if (botonEliminar) acciones.push(botonEliminar);
 
@@ -539,6 +540,24 @@ function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarIna
     celdaAccion,
   );
   return [fila, filaError];
+}
+
+/** Con nota de examen, la casilla de la prueba justificada muestra esa nota y no se puede editar. */
+function bloquearNota(input, bloqueada) {
+  input.readOnly = bloqueada;
+  input.classList.toggle("campo--bloqueado", bloqueada);
+  if (bloqueada) input.title = MENSAJE_BLOQUEADA;
+  else input.removeAttribute("title");
+}
+
+function actualizarBotonJustificar(boton, evaluacion) {
+  const justificada = evaluacion.inasistenciaJustificada;
+  boton.hidden = !evaluacion.puedeJustificarInasistencia && !justificada;
+  boton.dataset.justificada = String(justificada);
+  boton.textContent = justificada ? "Quitar justificación" : "Justificar falta a prueba";
+  boton.disabled = evaluacion.bloqueadaPorExamen;
+  if (evaluacion.bloqueadaPorExamen) boton.title = MENSAJE_BLOQUEADA;
+  else boton.removeAttribute("title");
 }
 
 /**
@@ -572,7 +591,7 @@ function conectarCampo(input, guardar, mostrarError, formatear) {
   input.addEventListener("keydown", (evento) => {
     if (evento.key !== "Enter") return;
     evento.preventDefault();
-    const casillas = [...document.querySelectorAll("#contenido input.campo:not([disabled])")].filter((c) => c.offsetParent);
+    const casillas = [...document.querySelectorAll("#contenido input.campo:not([disabled]):not([readonly])")].filter((c) => c.offsetParent);
     const siguiente = casillas[casillas.indexOf(input) + 1];
     if (siguiente) siguiente.focus();
     else input.blur();
@@ -644,7 +663,7 @@ function aplicarVista(vista) {
     x.tarjeta.hidden = !(resultado.examen || resultado.estado === "examen");
     x.espera.hidden = Boolean(resultado.examen);
     x.campo.hidden = !resultado.examen;
-    x.necesaria.textContent = resultado.examen ? `Nota mínima para aprobar: ${resultado.examen.necesaria}` : "";
+    x.necesaria.textContent = resultado.examen?.necesaria ? `Nota mínima para aprobar: ${resultado.examen.necesaria}` : "";
     if (document.activeElement !== x.nota) x.nota.value = vista.examen.nota;
   }
 
@@ -652,11 +671,14 @@ function aplicarVista(vista) {
     const fila = $(`#contenido [data-evaluacion-id="${evaluacion.id}"]`);
     const marca = fila?.querySelector(".marca-justificada");
     const accion = fila?.querySelector("[data-inasistencia-action]");
+    const nota = fila?.querySelector(".campo--nota");
     if (marca) marca.hidden = !evaluacion.inasistenciaJustificada;
-    if (accion) {
-      accion.hidden = !evaluacion.puedeJustificarInasistencia && !evaluacion.inasistenciaJustificada;
-      accion.dataset.justificada = String(evaluacion.inasistenciaJustificada);
-      accion.textContent = evaluacion.inasistenciaJustificada ? "Deshacer" : "Justificar inasistencia";
+    if (accion) actualizarBotonJustificar(accion, evaluacion);
+    if (nota) {
+      // Al poner o borrar el examen, la casilla pasa a mostrar la nota del examen o vuelve al 1,0
+      const cambio = nota.readOnly !== evaluacion.bloqueadaPorExamen;
+      bloquearNota(nota, evaluacion.bloqueadaPorExamen);
+      if (cambio || evaluacion.bloqueadaPorExamen) nota.value = evaluacion.nota;
     }
   }
 
@@ -734,9 +756,9 @@ async function eliminarEvaluacion(evaluacionId, nombre) {
 
 async function cambiarJustificacionInasistencia(evaluacionId, justificada) {
   const mensaje = justificada
-    ? "¿Confirmas que esta nota 1,0 corresponde a una prueba inasistida? La nota 1,0 se conservará en la presentación (75 %) y el examen final valdrá el 25 % restante."
-    : "¿Quieres quitar la justificación de inasistencia de esta prueba?";
-  if (!(await confirmar(mensaje, justificada ? "Justificar inasistencia" : "Quitar justificación"))) return;
+    ? "¿Confirmas que este 1,0 corresponde a una falta justificada a la prueba? Cuando ingreses la nota del examen final, esa nota reemplazará al 1,0 en la presentación (75 %) y además valdrá el 25 % de la nota final. Solo puedes justificar una prueba por asignatura."
+    : "¿Quieres quitar la justificación de la falta a esta prueba?";
+  if (!(await confirmar(mensaje, justificada ? "Justificar falta a prueba" : "Quitar justificación"))) return;
   const respuesta = await intentar(() => api.justificarInasistencia(evaluacionId, justificada));
   if (!respuesta) return;
   if (!respuesta.valida) {

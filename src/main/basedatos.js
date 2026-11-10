@@ -57,6 +57,15 @@ function abrirBaseDatos(ruta) {
       "ALTER TABLE evaluacion ADD COLUMN inasistencia_justificada INTEGER NOT NULL DEFAULT 0 CHECK (inasistencia_justificada IN (0, 1))",
     );
   }
+  // Antes se podían justificar varias pruebas por asignatura; ahora solo una (se conserva la primera)
+  db.exec(`
+    UPDATE evaluacion SET inasistencia_justificada = 0
+    WHERE inasistencia_justificada = 1 AND id <> (
+      SELECT primera.id FROM evaluacion primera
+      WHERE primera.asignatura_id = evaluacion.asignatura_id AND primera.inasistencia_justificada = 1
+      ORDER BY primera.orden, primera.id LIMIT 1
+    )
+  `);
 
   const sql = {
     semestrePorNumero: db.prepare("SELECT id FROM semestre WHERE numero = ?"),
