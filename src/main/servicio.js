@@ -20,9 +20,18 @@ function crearServicio(bd) {
     });
   }
 
-  /** La prueba justificada queda bloqueada mientras haya nota de examen (su casilla muestra esa nota). */
+  /** Todas las evaluaciones tienen nota y los porcentajes suman 100. */
+  function completa(asignatura) {
+    const { evaluaciones } = asignatura;
+    return calculos.sumaPorcentajes(evaluaciones) === 100 && evaluaciones.every((evaluacion) => evaluacion.nota !== null);
+  }
+
+  /**
+   * La prueba justificada queda bloqueada mientras haya nota de examen (su casilla muestra esa nota).
+   * Si a la asignatura le falta alguna nota, el examen no se usa: la casilla vuelve al 1,0 y se puede editar.
+   */
   function bloqueadaPorExamen(asignatura, evaluacion) {
-    return evaluacion.inasistencia_justificada === 1 && asignatura.notaExamen !== null;
+    return evaluacion.inasistencia_justificada === 1 && asignatura.notaExamen !== null && completa(asignatura);
   }
 
   /** Si la acumulada (con el 1,0) llega a la eximición, ya no va a examen: se quita la falta justificada. */
@@ -189,7 +198,8 @@ function crearServicio(bd) {
       const asignatura = asignaturaId === null ? null : bd.asignatura(asignaturaId);
       if (!asignatura) return { valida: false, mensaje: "No se encontró la evaluación.", vista: null };
       const actual = vista(asignaturaId);
-      if (!justificada && asignatura.notaExamen !== null) {
+      const evaluacion = asignatura.evaluaciones.find((item) => item.id === evaluacionId);
+      if (!justificada && evaluacion && bloqueadaPorExamen(asignatura, evaluacion)) {
         return { valida: false, mensaje: MENSAJE_BLOQUEADA, vista: actual };
       }
       if (
@@ -228,7 +238,11 @@ function crearServicio(bd) {
       if (editable(asignaturaId)) {
         const { evaluaciones } = bd.asignatura(asignaturaId);
         const disponible = Math.max(0, 100 - calculos.sumaPorcentajes(evaluaciones));
-        bd.agregarEvaluacion(asignaturaId, `EV${evaluaciones.length + 1}`, disponible);
+        // Primer "EVn" que no esté usado (al eliminar EV2 de cuatro, la nueva no puede llamarse EV4 otra vez)
+        const usados = new Set(evaluaciones.map((evaluacion) => clave(evaluacion.nombre)));
+        let numero = evaluaciones.length + 1;
+        while (usados.has(clave(`EV${numero}`))) numero += 1;
+        bd.agregarEvaluacion(asignaturaId, `EV${numero}`, disponible);
       }
       return vista(asignaturaId);
     },

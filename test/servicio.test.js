@@ -273,6 +273,42 @@ test("lectiva: al borrar el examen vuelve el 1,0 y el estado morado", () => {
   assert.equal(respuesta.vista.resultado.promedio, "4,6");
 });
 
+test("lectiva: si se borra otra nota con examen puesto, la prueba justificada vuelve al 1,0 y se desbloquea", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
+  const id = vista.asignatura.id;
+  const prueba = vista.evaluaciones[0].id;
+  servicio.justificarInasistencia(prueba, true);
+  servicio.guardarNotaExamen(id, "6,0");
+
+  // Sin EV4 el examen no se usa: la casilla muestra el 1,0 con que se calcula el promedio
+  let actual = servicio.guardarNota(vista.evaluaciones[3].id, "").vista;
+  assert.equal(actual.resultado.completo, false);
+  assert.equal(actual.evaluaciones[0].nota, "1,0");
+  assert.equal(actual.evaluaciones[0].bloqueadaPorExamen, false);
+  assert.equal(actual.evaluaciones[0].inasistenciaJustificada, true);
+
+  // Al completar de nuevo, vuelve a usarse el examen y la casilla se bloquea otra vez
+  // presentación = 4,6 + (6,0 − 1,0) × 0,2 = 5,6 ; final = 5,6 × 0,75 + 6,0 × 0,25 = 5,7
+  actual = servicio.guardarNota(vista.evaluaciones[3].id, "5,5").vista;
+  assert.equal(actual.evaluaciones[0].nota, "6,0");
+  assert.equal(actual.evaluaciones[0].bloqueadaPorExamen, true);
+  assert.equal(actual.resultado.examen.final, "5,7");
+});
+
+test("lectiva: con una nota borrada se puede quitar la justificación aunque haya examen", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
+  const prueba = vista.evaluaciones[0].id;
+  servicio.justificarInasistencia(prueba, true);
+  servicio.guardarNotaExamen(vista.asignatura.id, "6,0");
+  servicio.guardarNota(vista.evaluaciones[3].id, "");
+
+  const respuesta = servicio.justificarInasistencia(prueba, false);
+  assert.equal(respuesta.valida, true);
+  assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, false);
+});
+
 test("solo se puede justificar una prueba por asignatura", () => {
   const { servicio } = nuevo();
   let vista = buscar(servicio, "Administración");
@@ -387,6 +423,20 @@ test("ponderación libre: editar, agregar, eliminar y restaurar conservando nota
   assert.deepEqual(vista.evaluaciones.map((e) => e.porcentaje), [15, 25, 35, 25]);
   assert.equal(vista.evaluaciones[0].nota, "6,0");
   assert.equal(vista.asignatura.ponderacionModificada, false);
+});
+
+test("agregar una evaluación no repite el nombre de otra", () => {
+  const { servicio } = nuevo();
+  let vista = buscar(servicio, "Electivo de Tendencias del Sector Productivo y de Servicios I");
+  const id = vista.asignatura.id;
+
+  vista = servicio.eliminarEvaluacion(vista.evaluaciones[1].id);
+  vista = servicio.agregarEvaluacion(id);
+  assert.deepEqual(vista.evaluaciones.map((e) => e.nombre), ["EV1", "EV3", "EV4", "EV5"]);
+
+  vista = servicio.renombrarEvaluacion(vista.evaluaciones[0].id, "ev6").vista;
+  vista = servicio.agregarEvaluacion(id);
+  assert.equal(vista.evaluaciones[4].nombre, "EV7");
 });
 
 test("desactivar la ponderación libre vuelve a la original", () => {

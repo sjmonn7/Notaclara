@@ -136,6 +136,7 @@ La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real
   - Nota final = presentación × 0,75 + E × 0,25. No hay eximición aunque la presentación nueva llegue a 4,945, porque el examen ya se rindió.
   - Ejemplo: 1,0 (30 %, justificada), 4,0 (30 %), 5,0 (40 %) y examen 6,0 → presentación 5,0 → final 5,25 → **5,3**.
   - La casilla de la prueba muestra E y queda bloqueada, igual que "Quitar justificación". Para cambiarla hay que borrar primero la nota del examen.
+  - Si después se borra otra nota, el examen deja de usarse mientras falte esa nota: la casilla vuelve a mostrar el 1,0 y se desbloquea. Al completar la nota, vuelve a usarse el examen.
 - Nota mínima de examen: como el examen cuenta dos veces, se prueba cada nota de 1,0 a 7,0 y se muestra la primera que aprueba. Si ninguna alcanza → rojo "Reprobado".
 - Si después otras notas suben la acumulada (con el 1,0) a 4,945 o más, la justificación se quita sola.
 - Al ingresar una nota inválida, el promedio y la nota final se ocultan hasta corregirla. La nota inválida no se guarda ni se usa en los cálculos.
