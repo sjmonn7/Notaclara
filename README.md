@@ -147,6 +147,7 @@ La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real
 - Fuera de 1,0 a 7,0 → "Nota inválida. Ingrese una nota entre 1,0 y 7,0."
 - Más de un decimal (`6,34`) → "Nota inválida. Ingrese un número con UN solo decimal."
 - En ponderación libre, los campos de porcentaje solo permiten números enteros de 0 a 100. Si no suman 100 % no se calcula el estado y se muestra "Los porcentajes deben sumar 100%."
+- Dos evaluaciones de la misma asignatura no pueden tener el mismo nombre (sin importar mayúsculas), porque al restaurar la ponderación original las notas se conservan por nombre.
 
 ## Estructura de carpetas
 

@@ -439,6 +439,44 @@ test("agregar una evaluación no repite el nombre de otra", () => {
   assert.equal(vista.evaluaciones[4].nombre, "EV7");
 });
 
+test("renombrar no permite repetir el nombre de otra evaluación", () => {
+  const { servicio } = nuevo();
+  let vista = buscar(servicio, "Electivo de Tendencias del Sector Productivo y de Servicios I");
+  const segunda = vista.evaluaciones[1].id;
+
+  let respuesta = servicio.renombrarEvaluacion(segunda, " ev1 ");
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.mensaje, "Ya existe una evaluación con ese nombre.");
+  assert.equal(respuesta.vista.evaluaciones[1].nombre, "EV2");
+
+  // Mantener su propio nombre (aunque cambien mayúsculas) sí se puede
+  respuesta = servicio.renombrarEvaluacion(segunda, "ev2");
+  assert.equal(respuesta.valida, true);
+  assert.equal(respuesta.vista.evaluaciones[1].nombre, "ev2");
+});
+
+test("sin ponderación libre no se cambian nombres ni porcentajes", () => {
+  const { servicio } = nuevo();
+  const vista = buscar(servicio, "Sistemas Operativos");
+  const evaluacion = vista.evaluaciones[0];
+
+  let respuesta = servicio.renombrarEvaluacion(evaluacion.id, "Prueba");
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.vista.evaluaciones[0].nombre, evaluacion.nombre);
+
+  respuesta = servicio.cambiarPorcentaje(evaluacion.id, "50");
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.vista.evaluaciones[0].porcentaje, evaluacion.porcentaje);
+});
+
+test("las prácticas no aceptan nota de examen", () => {
+  const { servicio } = nuevo();
+  const vista = buscar(servicio, "Sistemas Operativos");
+  const respuesta = servicio.guardarNotaExamen(vista.asignatura.id, "7,0");
+  assert.equal(respuesta.valida, false);
+  assert.equal(respuesta.vista.examen.nota, "");
+});
+
 test("desactivar la ponderación libre vuelve a la original", () => {
   const { servicio } = nuevo();
   let vista = buscar(servicio, "Sistemas Operativos");

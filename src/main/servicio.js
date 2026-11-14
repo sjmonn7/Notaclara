@@ -7,6 +7,9 @@ const TIPO_TEXTO = { practica: "Práctica", lectiva: "Lectiva" };
 
 const MENSAJE_BLOQUEADA =
   "Esta nota se completó con la nota del examen. Para modificarla, borra primero la nota del examen.";
+const MENSAJE_NO_EDITABLE = "Activa la ponderación libre para cambiar las evaluaciones.";
+const MENSAJE_NOMBRE_REPETIDO = "Ya existe una evaluación con ese nombre.";
+const MENSAJE_SIN_EXAMEN = "Esta asignatura no tiene examen final.";
 
 function crearServicio(bd) {
   function calcular(asignatura) {
@@ -188,6 +191,9 @@ function crearServicio(bd) {
     },
 
     guardarNotaExamen(asignaturaId, texto) {
+      if (bd.asignatura(asignaturaId)?.tipo !== "lectiva") {
+        return respuesta({ valida: false, mensaje: MENSAJE_SIN_EXAMEN }, asignaturaId);
+      }
       const validacion = calculos.validarNota(texto);
       if (validacion.valida) bd.guardarNotaExamen(asignaturaId, validacion.valor);
       return respuesta(validacion, asignaturaId);
@@ -258,18 +264,24 @@ function crearServicio(bd) {
 
     renombrarEvaluacion(evaluacionId, texto) {
       const asignaturaId = bd.asignaturaDeEvaluacion(evaluacionId);
-      const nombre = String(texto ?? "").trim();
-      const validacion = nombre
-        ? { valida: true, mensaje: "" }
-        : { valida: false, mensaje: "El nombre de la evaluación no puede quedar vacío." };
-      if (validacion.valida && editable(asignaturaId)) bd.guardarNombre(evaluacionId, nombre.slice(0, 60));
+      if (!editable(asignaturaId)) return respuesta({ valida: false, mensaje: MENSAJE_NO_EDITABLE }, asignaturaId);
+      const nombre = String(texto ?? "").trim().slice(0, 60);
+      // Sin nombres repetidos: al restaurar la ponderación las notas se conservan por nombre
+      const repetido = bd
+        .asignatura(asignaturaId)
+        .evaluaciones.some((evaluacion) => evaluacion.id !== evaluacionId && clave(evaluacion.nombre) === clave(nombre));
+      let validacion = { valida: true, mensaje: "" };
+      if (!nombre) validacion = { valida: false, mensaje: "El nombre de la evaluación no puede quedar vacío." };
+      else if (repetido) validacion = { valida: false, mensaje: MENSAJE_NOMBRE_REPETIDO };
+      if (validacion.valida) bd.guardarNombre(evaluacionId, nombre);
       return respuesta(validacion, asignaturaId);
     },
 
     cambiarPorcentaje(evaluacionId, texto) {
       const asignaturaId = bd.asignaturaDeEvaluacion(evaluacionId);
+      if (!editable(asignaturaId)) return respuesta({ valida: false, mensaje: MENSAJE_NO_EDITABLE }, asignaturaId);
       const validacion = calculos.validarPorcentaje(texto);
-      if (validacion.valido && editable(asignaturaId)) {
+      if (validacion.valido) {
         bd.guardarPorcentaje(evaluacionId, validacion.valor);
         revisarJustificacion(asignaturaId);
       }
