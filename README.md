@@ -1,27 +1,167 @@
+<div align="center">
+
+<img src="recursos/icono.png" alt="Ícono de NotaClara" width="112" />
+
 # NotaClara
 
-Calculadora de notas para estudiantes de **Analista Programador de INACAP** (4 semestres).
-Es una aplicación de escritorio para Windows hecha con Electron (HTML + CSS + JavaScript) que guarda las notas en un archivo SQLite local. Funciona 100 % sin internet.
+**Tu calculadora de notas para Analista Programador · INACAP**
 
-**Autores:** Simon Macías, Fabián Rojas, Natalia Sandoval y Berhane Castro.
+Escribe tus notas y NotaClara te dice al tiro cómo vas, si te eximes<br />
+y cuánto necesitas para aprobar. Sin fórmulas, sin internet, sin complicaciones.
 
-## Qué hace
+<a href="https://github.com/sjmonn7/Notaclara/releases/latest/download/NotaClara-Instalador.exe"><img src="https://img.shields.io/badge/Descargar_para_Windows-3157d5?style=for-the-badge" alt="Descargar para Windows" height="44" /></a>
 
-- Trae precargados los 4 semestres de la carrera con sus asignaturas, su tipo (Práctica o Lectiva) y las ponderaciones oficiales de cada evaluación.
-- Se elige un semestre en la barra lateral, luego una asignatura, y se escriben las notas. Cada nota se **guarda automáticamente** al escribirla (no hay botón "Guardar").
-- Muestra el promedio y el estado de la asignatura con colores:
-  - **Verde**: aprobado o eximido.
-  - **Amarillo**: va a examen (solo lectivas).
-  - **Rojo**: reprobado.
-  - **Morado**: falta justificada a una prueba, esperando la nota del examen (solo lectivas).
-  - **Gris**: todavía no hay notas (o faltan notas y aún no hay un resultado definido).
-- Calcula la nota mínima que se necesita en lo que falta para aprobar (prácticas) o para eximirse (lectivas). Lo dice en una frase corta, por ejemplo: "Para eximirte necesitas un 6,1 en EV4." (nombra hasta 3 evaluaciones pendientes; si son más, dice "en cada evaluación que falta").
-- En una asignatura lectiva completa que va a examen, permite justificar la falta a **una** prueba con nota 1,0. Al ingresar la nota del examen, esa nota reemplaza al 1,0 en la presentación y además vale el 25 % de la nota final.
-- **Ponderación libre**: si las ponderaciones cambiaron durante el año, se pueden editar nombres y porcentajes, agregar y eliminar evaluaciones (como en la primera versión del proyecto) y volver a la ponderación original. Los electivos vienen siempre con ponderación libre (parten con 4 evaluaciones de 25 %).
+<a href="DESCARGA.md"><img src="https://img.shields.io/badge/Gu%C3%ADa_de_instalaci%C3%B3n-paso_a_paso-1f2a44?style=flat-square" alt="Guía de instalación paso a paso" /></a>
+<img src="https://img.shields.io/github/v/release/sjmonn7/Notaclara?style=flat-square&label=versi%C3%B3n&color=3157d5" alt="Versión" />
+<img src="https://img.shields.io/badge/Windows-10_|_11-1f2a44?style=flat-square" alt="Windows 10 y 11" />
+<img src="https://img.shields.io/badge/funciona-sin_internet-1d8a4e?style=flat-square" alt="Funciona sin internet" />
 
-La interfaz está pensada para personas que no saben de informática: no muestra términos técnicos, fórmulas ni umbrales internos. Esos detalles están solo en este README.
+<br />
+<br />
 
-## Ejecutarla desde VS Code
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="recursos/capturas/principal-oscuro.png" />
+  <img src="recursos/capturas/principal-claro.png" alt="NotaClara mostrando las notas de Programación Orientada a Objeto Seguro con promedio 5,8 y estado Aprobado" width="860" />
+</picture>
+
+</div>
+
+<br />
+
+## ✨ Qué hace por ti
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📚 La malla completa, lista
+
+Los **4 semestres** de Analista Programador vienen cargados, con cada asignatura, su tipo (Práctica o Lectiva) y los porcentajes oficiales de cada evaluación.
+
+</td>
+<td width="50%" valign="top">
+
+### 💾 Se guarda solo
+
+Escribe una nota y listo: **no hay botón "Guardar"**. Al cerrar y volver a abrir, tus notas siguen ahí.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🎯 Cuánto te falta
+
+Te dice en una frase la nota mínima que necesitas: *"Para eximirte necesitas un 6,1 en EV4."*
+
+</td>
+<td valign="top">
+
+### 🔌 Sin internet
+
+Funciona **100 % sin conexión**. Tus notas se quedan en tu computador y no se envían a ninguna parte.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 📝 Examen y faltas justificadas
+
+En las lectivas calcula la **nota mínima del examen** y permite justificar la falta a **una** prueba.
+
+</td>
+<td valign="top">
+
+### ⚙️ Ponderación libre
+
+¿Cambiaron los porcentajes durante el semestre? Edita nombres y porcentajes, agrega o quita evaluaciones, y vuelve a la ponderación original cuando quieras.
+
+</td>
+</tr>
+</table>
+
+### Los colores te dicen cómo vas
+
+| | Estado | Qué significa |
+|:---:|---|---|
+| 🟢 | **Aprobado / Eximido** | ¡Lo lograste! O ya lo tienes asegurado aunque falten notas. |
+| 🟡 | **Vas a examen** | No alcanzaste el 5,0 para eximirte (solo lectivas). Te dice la nota mínima del examen. |
+| 🔴 | **Reprobado** | El promedio final no llega a 4,0, o ni con 7,0 en lo que falta alcanzarías. |
+| 🟣 | **Falta justificada** | Justificaste la falta a una prueba y falta la nota del examen (solo lectivas). |
+| ⚪ | **En curso / Sin notas** | Todavía faltan notas para saber el resultado. |
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="recursos/capturas/examen-oscuro.png" />
+  <img src="recursos/capturas/examen-claro.png" alt="Administración, asignatura lectiva, con promedio 4,4, estado Vas a examen y nota mínima del examen 2,6" width="760" />
+</picture>
+<br />
+<sub>Una asignatura lectiva que va a examen: NotaClara calcula la nota mínima que necesitas.</sub>
+</div>
+
+## 🚀 Empieza en 3 pasos
+
+1. **Descarga** el instalador con el botón azul de arriba.
+2. **Instálalo** con doble clic. Si Windows muestra *"Windows protegió su PC"*, haz clic en **Más información → Ejecutar de todas formas** (aparece porque el programa no tiene una firma digital pagada).
+3. **Ábrelo** desde el ícono del Escritorio, elige tu semestre y una asignatura, y escribe tus notas.
+
+¿Dudas? La **[guía de instalación](DESCARGA.md)** lo explica con más detalle, incluidos los avisos del navegador y qué hacer si algo falla.
+
+## ❓ Preguntas frecuentes
+
+<details>
+<summary><b>¿Necesito instalar algo más, como Python o una base de datos?</b></summary>
+<br />
+
+No. El instalador trae todo lo necesario. Solo necesitas Windows 10 u 11.
+</details>
+
+<details>
+<summary><b>¿Cómo escribo las notas?</b></summary>
+<br />
+
+De 1,0 a 7,0, con un solo decimal. Puedes usar coma o punto: `5,5` y `5.5` valen lo mismo.
+</details>
+
+<details>
+<summary><b>¿Cómo redondea?</b></summary>
+<br />
+
+Con el redondeo chileno: primero a dos decimales y luego a uno. Por ejemplo, un 4,945 queda en 4,95 y se muestra como **5,0**.
+</details>
+
+<details>
+<summary><b>¿Se borran mis notas si actualizo o desinstalo?</b></summary>
+<br />
+
+No. Tus notas se guardan aparte, en `%APPDATA%\NotaClara\notaclara.sqlite`. Puedes instalar una versión nueva encima sin perder nada. La [guía de instalación](DESCARGA.md#dónde-quedan-guardadas-tus-notas) explica cómo hacer una copia de seguridad.
+</details>
+
+<details>
+<summary><b>¿Es seguro el aviso "Windows protegió su PC"?</b></summary>
+<br />
+
+Windows avisa con todos los programas que no tienen un certificado de firma, que es pagado. NotaClara es un proyecto de estudiantes y no lo tiene. Descárgala solo desde este repositorio.
+</details>
+
+<br />
+
+<div align="center">
+
+Hecho con 💙 por **Simon Macías, Fabián Rojas, Natalia Sandoval y Berhane Castro**<br />
+<sub>Estudiantes de Analista Programador · INACAP Sede Temuco</sub>
+
+</div>
+
+---
+
+## 🛠️ Para desarrolladores
+
+NotaClara es una aplicación de escritorio hecha con **Electron** (HTML + CSS + JavaScript) que guarda las notas en un archivo **SQLite** local mediante `better-sqlite3`. La interfaz no muestra términos técnicos, fórmulas ni umbrales internos: esos detalles están en las secciones de abajo. Para publicar una versión nueva, sigue [PUBLICAR.md](PUBLICAR.md).
+
+<details>
+<summary><b>▶️ Ejecutarla desde VS Code</b></summary>
 
 Requisito para desarrollar: [Node.js](https://nodejs.org/) 22.12 o superior (se probó con Node 24).
 
@@ -47,19 +187,29 @@ npm test
 
 Usa el ejecutor de pruebas que trae Node (`node:test`). Las pruebas están en [test/](test/): cálculos, redondeo, validación de notas y guardado en un archivo SQLite temporal.
 
-## Generar el instalador (.exe)
+</details>
+
+<details>
+<summary><b>📦 Generar el instalador (.exe)</b></summary>
 
 ```bash
 npm run build
 ```
 
-Crea `dist/NotaClara-Instalador-<versión>.exe` con electron-builder (instalador NSIS para Windows x64). El instalador incluye todo lo necesario (Electron y SQLite), así que **quien instala la app no necesita instalar nada más** ni tener internet. Permite elegir la carpeta de instalación y crea accesos directos en el escritorio y en el menú Inicio.
+Crea `dist/NotaClara-Instalador.exe` con electron-builder (instalador NSIS para Windows x64). El nombre no lleva la versión para que el enlace `releases/latest/download/NotaClara-Instalador.exe` sirva siempre; la versión está en `package.json`. El instalador incluye todo lo necesario (Electron y SQLite), así que **quien instala la app no necesita instalar nada más** ni tener internet. Permite elegir la carpeta de instalación y crea accesos directos en el escritorio y en el menú Inicio.
 
 Para generar el instalador sí se necesita internet la primera vez, porque electron-builder descarga sus herramientas. La carpeta `dist/` no se sube al repositorio.
 
 El instalador no está firmado digitalmente, así que Windows SmartScreen puede mostrar un aviso la primera vez ("Más información → Ejecutar de todas formas").
 
-## Dónde se guardan las notas
+`npm run build` nunca publica nada (`--publish never`). Para subir una versión nueva a GitHub Releases, sigue [PUBLICAR.md](PUBLICAR.md).
+
+> `npm start` usa el mismo archivo de notas que la app instalada. Para probar sin tocar tus notas: `.\dist\win-unpacked\NotaClara.exe --user-data-dir="$env:TEMP\notaclara-prueba"`.
+
+</details>
+
+<details>
+<summary><b>🗄️ Dónde se guardan las notas</b></summary>
 
 En un archivo SQLite llamado `notaclara.sqlite`, dentro de la carpeta de datos del usuario de Windows (`app.getPath('userData')`):
 
@@ -82,7 +232,10 @@ Las ponderaciones originales están en [src/datos/malla.js](src/datos/malla.js);
 
 Al abrir una base anterior, la aplicación agrega la nueva marca por evaluación sin borrar las notas guardadas. La antigua marca de falta al examen queda sin uso y no afecta los cálculos.
 
-## Reglas de cálculo
+</details>
+
+<details>
+<summary><b>🧮 Reglas de cálculo</b></summary>
 
 Toda la lógica está en [src/logica/calculos.js](src/logica/calculos.js), un módulo sin dependencias de la interfaz ni de la base de datos. La interfaz solo recibe resultados ya redondeados.
 
@@ -149,13 +302,20 @@ La app muestra siempre el valor redondeado, sin avisar nada (si el promedio real
 - En ponderación libre, los campos de porcentaje solo permiten números enteros de 0 a 100. Si no suman 100 % no se calcula el estado y se muestra "Los porcentajes deben sumar 100%."
 - Dos evaluaciones de la misma asignatura no pueden tener el mismo nombre (sin importar mayúsculas), porque al restaurar la ponderación original las notas se conservan por nombre.
 
-## Estructura de carpetas
+</details>
+
+<details>
+<summary><b>📁 Estructura de carpetas</b></summary>
 
 ```
 NotaClara/
 ├── package.json             Dependencias, scripts (start, test, build) y configuración del instalador
+├── DESCARGA.md              Guía de descarga e instalación para usuarios
+├── PUBLICAR.md              Cómo generar y publicar una versión nueva
+├── REVISION-ERRORES.md      Errores encontrados y corregidos en la revisión de noviembre de 2026
 ├── recursos/
-│   └── icono.png            Ícono de la app y del instalador
+│   ├── icono.png            Ícono de la app y del instalador
+│   └── capturas/            Capturas de pantalla del README (claro y oscuro); no van en el instalador
 ├── scripts/
 │   └── iniciar.js           Abre Electron para `npm start`
 ├── src/
@@ -177,6 +337,11 @@ NotaClara/
     └── servicio.test.js     Pruebas de guardado y ponderación libre
 ```
 
-## Historia
+</details>
+
+<details>
+<summary><b>📜 Historia</b></summary>
 
 La primera versión era una aplicación de terminal en Python con MySQL (peewee + pymysql) y luego tuvo una interfaz con customtkinter. Esta versión la reemplaza por completo: ya no se necesita Python, MySQL, WAMP/XAMPP ni el archivo `.env`.
+
+</details>

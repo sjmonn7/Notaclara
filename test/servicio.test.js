@@ -34,6 +34,12 @@ test("precarga los 4 semestres con todas sus asignaturas y ponderaciones que sum
   });
 });
 
+test("una asignatura que no existe no rompe la vista ni el resumen", () => {
+  const { servicio } = nuevo();
+  assert.equal(servicio.vista(999999), null);
+  assert.equal(servicio.resumen(999999), null);
+});
+
 test("abrir el archivo de nuevo conserva las notas y no duplica asignaturas", (t) => {
   const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), "notaclara-"));
   t.after(() => fs.rmSync(carpeta, { recursive: true, force: true }));
@@ -160,6 +166,19 @@ test("el mensaje dice en una frase la nota que falta y en qué evaluaciones", ()
 test("el mensaje nombra la única evaluación pendiente", () => {
   const { servicio } = nuevo();
   const vista = buscar(servicio, "Formación Ciudadana");
+  for (const evaluacion of vista.evaluaciones.slice(0, 3)) {
+    servicio.guardarNota(evaluacion.id, "3,0");
+  }
+
+  const resultado = servicio.vista(vista.asignatura.id).resultado;
+  assert.equal(resultado.mensaje, `Para aprobar necesitas un ${resultado.notaNecesaria} en EV4.`);
+});
+
+test("el mensaje no nombra evaluaciones de 0 % sin nota", () => {
+  const { servicio } = nuevo();
+  const vista = buscar(servicio, "Formación Ciudadana");
+  servicio.cambiarPonderacionLibre(vista.asignatura.id, true);
+  servicio.agregarEvaluacion(vista.asignatura.id);
   for (const evaluacion of vista.evaluaciones.slice(0, 3)) {
     servicio.guardarNota(evaluacion.id, "3,0");
   }
@@ -307,6 +326,27 @@ test("lectiva: con una nota borrada se puede quitar la justificación aunque hay
   const respuesta = servicio.justificarInasistencia(prueba, false);
   assert.equal(respuesta.valida, true);
   assert.equal(respuesta.vista.evaluaciones[0].inasistenciaJustificada, false);
+});
+
+test("lectiva: una evaluación nueva de 0 % no desbloquea la prueba justificada mientras el examen se usa", () => {
+  const { servicio } = nuevo();
+  const vista = administracionConFalta(servicio);
+  const id = vista.asignatura.id;
+  const prueba = vista.evaluaciones[0].id;
+  servicio.justificarInasistencia(prueba, true);
+  servicio.guardarNotaExamen(id, "6,0");
+  servicio.cambiarPonderacionLibre(id, true);
+
+  // Los porcentajes ya suman 100, así que la evaluación nueva vale 0 % y el cálculo sigue completo
+  const actual = servicio.agregarEvaluacion(id);
+  assert.equal(actual.evaluaciones.at(-1).porcentaje, 0);
+  assert.equal(actual.resultado.completo, true);
+  assert.equal(actual.resultado.examen.final, "5,7");
+  // La casilla muestra la nota con que se calcula (el examen) y sigue bloqueada
+  assert.equal(actual.evaluaciones[0].nota, "6,0");
+  assert.equal(actual.evaluaciones[0].bloqueadaPorExamen, true);
+  assert.equal(servicio.guardarNota(prueba, "6,0").valida, false);
+  assert.equal(servicio.justificarInasistencia(prueba, false).valida, false);
 });
 
 test("solo se puede justificar una prueba por asignatura", () => {

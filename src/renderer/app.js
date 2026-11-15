@@ -426,6 +426,9 @@ function seccionEvaluaciones(vista) {
   );
 }
 
+/** Casilla de nota -> función que borra su error. La usa aplicarVista al reemplazar lo escrito por la nota guardada. */
+const limpiarErrorNota = new WeakMap();
+
 function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarInasistencia) {
   const errores = { nombre: "", porcentaje: "", nota: "" };
   const textoError = crear("td", { colspan: muestraAcciones ? 4 : 3 });
@@ -451,6 +454,7 @@ function filaEvaluacion(evaluacion, libre, muestraAcciones, permiteJustificarIna
     value: evaluacion.nota,
   });
   configurarEntradaNumerica(nota, "nota", 5);
+  limpiarErrorNota.set(nota, () => mostrarError("nota", nota, ""));
   conectarCampo(nota, (texto) => api.guardarNota(evaluacion.id, texto), (mensaje) => mostrarError("nota", nota, mensaje), (vista) => {
     return vista.evaluaciones.find((item) => item.id === evaluacion.id)?.nota;
   });
@@ -571,20 +575,29 @@ function conectarCampo(input, guardar, mostrarError, formatear) {
 
   input.addEventListener("input", () => {
     const numero = ++pedido;
-    ultima = intentar(() => guardar(input.value)).then((respuesta) => {
+    const texto = input.value;
+    ultima = intentar(() => guardar(texto)).then((respuesta) => {
       if (!respuesta || numero !== pedido) return null;
-      mostrarError(respuesta.valida || respuesta.incompleta ? "" : respuesta.mensaje);
+      // Una nota a medio escribir (ej: "4,") solo se perdona mientras la persona sigue en la casilla;
+      // si ya salió antes de que llegara la respuesta, es un error y debe marcarse antes de aplicar la vista
+      const sigueEscribiendo = respuesta.incompleta && document.activeElement === input;
+      mostrarError(respuesta.valida || sigueEscribiendo ? "" : respuesta.mensaje);
       if (respuesta.vista) aplicarVista(respuesta.vista);
       if (respuesta.valida) marcarGuardado();
-      return respuesta;
+      return { ...respuesta, texto };
     });
   });
 
   input.addEventListener("blur", async () => {
     const respuesta = await ultima;
-    if (!respuesta) return;
-    if (!respuesta.valida) mostrarError(respuesta.mensaje);
-    else if (formatear && document.activeElement !== input) input.value = formatear(respuesta.vista) ?? input.value;
+    // Si la casilla ya no tiene el texto de esa respuesta (ej: aplicarVista puso la nota del examen),
+    // la respuesta quedó obsoleta y no se usa para formatear ni para mostrar errores
+    if (!respuesta || respuesta.texto !== input.value) return;
+    if (!respuesta.valida) {
+      mostrarError(respuesta.mensaje);
+      // Mientras se escribía (ej: "4,") el error no se mostraba; ahora sí, así que se oculta el promedio
+      if (estado.vista) aplicarVista(estado.vista);
+    } else if (formatear && document.activeElement !== input) input.value = formatear(respuesta.vista) ?? input.value;
   });
 
   // Enter pasa a la siguiente casilla
@@ -611,15 +624,16 @@ function seccionExamen(vista) {
   });
   configurarEntradaNumerica(nota, "nota", 5);
   const error = crear("p", { class: "error", hidden: true });
+  function mostrarError(mensaje) {
+    error.textContent = mensaje;
+    error.hidden = !mensaje;
+    nota.classList.toggle("campo--error", Boolean(mensaje));
+    nota.setAttribute("aria-invalid", String(Boolean(mensaje)));
+  }
   conectarCampo(
     nota,
     (texto) => api.guardarNotaExamen(estado.asignaturaId, texto),
-    (mensaje) => {
-      error.textContent = mensaje;
-      error.hidden = !mensaje;
-      nota.classList.toggle("campo--error", Boolean(mensaje));
-      nota.setAttribute("aria-invalid", String(Boolean(mensaje)));
-    },
+    mostrarError,
     (vistaNueva) => vistaNueva.examen.nota,
   );
 
@@ -638,7 +652,7 @@ function seccionExamen(vista) {
   const normal = crear("div", { class: "examen-normal" }, espera, campo);
 
   const tarjeta = crear("section", { class: "tarjeta examen" }, crear("h3", { texto: "Examen final" }), normal);
-  panel.examen = { tarjeta, nota, necesaria, campo, espera };
+  panel.examen = { tarjeta, nota, necesaria, campo, espera, mostrarError };
   return tarjeta;
 }
 
@@ -664,7 +678,12 @@ function aplicarVista(vista) {
     x.espera.hidden = Boolean(resultado.examen);
     x.campo.hidden = !resultado.examen;
     x.necesaria.textContent = resultado.examen?.necesaria ? `Nota mínima para aprobar: ${resultado.examen.necesaria}` : "";
-    if (document.activeElement !== x.nota) x.nota.value = vista.examen.nota;
+    // Si el examen ya no se usa (se eximió o falta una nota), se descarta lo que quedó a medio escribir:
+    // la casilla está oculta y no debe bloquear el promedio
+    if (!resultado.examen && x.nota.getAttribute("aria-invalid") === "true") x.mostrarError("");
+    // Una nota de examen inválida (ej: "4,") se deja tal cual para que la persona la corrija
+    const borradorInvalido = x.nota.getAttribute("aria-invalid") === "true";
+    if (document.activeElement !== x.nota && !borradorInvalido) x.nota.value = vista.examen.nota;
   }
 
   for (const evaluacion of vista.evaluaciones) {
@@ -678,7 +697,11 @@ function aplicarVista(vista) {
       // Al poner o borrar el examen, la casilla pasa a mostrar la nota del examen o vuelve al 1,0
       const cambio = nota.readOnly !== evaluacion.bloqueadaPorExamen;
       bloquearNota(nota, evaluacion.bloqueadaPorExamen);
-      if (cambio || evaluacion.bloqueadaPorExamen) nota.value = evaluacion.nota;
+      if (cambio || evaluacion.bloqueadaPorExamen) {
+        // Lo escrito se reemplaza por la nota con que se calcula, así que cualquier error anterior ya no aplica
+        nota.value = evaluacion.nota;
+        limpiarErrorNota.get(nota)?.();
+      }
     }
   }
 

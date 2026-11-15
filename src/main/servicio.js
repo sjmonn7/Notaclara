@@ -23,10 +23,13 @@ function crearServicio(bd) {
     });
   }
 
-  /** Todas las evaluaciones tienen nota y los porcentajes suman 100. */
+  /**
+   * Los porcentajes suman 100 y no queda porcentaje pendiente. Es la misma regla de calcularAsignatura:
+   * una evaluación de 0 % sin nota no deja la asignatura incompleta.
+   */
   function completa(asignatura) {
     const { evaluaciones } = asignatura;
-    return calculos.sumaPorcentajes(evaluaciones) === 100 && evaluaciones.every((evaluacion) => evaluacion.nota !== null);
+    return calculos.sumaPorcentajes(evaluaciones) === 100 && calculos.porcentajeEvaluado(evaluaciones) === 100;
   }
 
   /**
@@ -60,8 +63,9 @@ function crearServicio(bd) {
   /** Mensaje corto con la nota que falta: "Para eximirte necesitas un 6,1 en EV4." */
   function mensajeNotaNecesaria(asignatura, notaNecesaria) {
     const meta = asignatura.tipo === "lectiva" ? "eximirte" : "aprobar";
+    // Una evaluación de 0 % sin nota no cambia el promedio, así que no se nombra
     const pendientes = asignatura.evaluaciones
-      .filter((evaluacion) => evaluacion.nota === null)
+      .filter((evaluacion) => evaluacion.nota === null && evaluacion.porcentaje > 0)
       .map((evaluacion) => evaluacion.nombre);
     const donde =
       pendientes.length > 3
@@ -140,6 +144,7 @@ function crearServicio(bd) {
   /** Resumen corto de una asignatura para la barra lateral y la portada del semestre. */
   function resumen(asignaturaId) {
     const asignatura = bd.asignatura(asignaturaId);
+    if (!asignatura) return null;
     const resultado = resultadoParaMostrar(calcular(asignatura), asignatura);
     return {
       id: asignatura.id,
