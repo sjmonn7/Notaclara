@@ -1,7 +1,7 @@
 {
   "name": "notaclara",
   "productName": "NotaClara",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Calculadora de notas para Analista Programador de INACAP",
   "main": "src/main/main.js",
   "author": "Simon Macías, Fabián Rojas, Natalia Sandoval, Berhane Castro",

@@ -88,7 +88,7 @@ function configurarEntradaNumerica(input, formato, maxLength) {
   };
   const permitido = (texto) =>
     formato === "nota"
-      ? /^(?:[1-6](?:[.,]\d?)?|7(?:[.,]0?)?)?$/.test(texto)
+      ? /^(?:[1-6](?:[.,]\d?)?|7(?:[.,]0?)?|\d{2})?$/.test(texto) // \d{2}: "55" se lee como 5,5 (lo valida calculos.js)
       : /^\d{0,3}$/.test(texto) && (texto === "" || Number(texto) <= 100);
   const insertar = (evento, texto) => {
     const inicio = input.selectionStart;

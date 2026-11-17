@@ -117,6 +117,40 @@ test.describe("validación de notas", () => {
     assert.equal(c.validarNota("-4").valida, false);
   });
 
+  test("dos dígitos sin separador se leen como nota con un decimal", () => {
+    const casos = { "55": 55, "43": 43, "67": 67, "10": 10, "70": 70 };
+    for (const [texto, esperado] of Object.entries(casos)) {
+      const r = c.validarNota(texto);
+      assert.equal(r.valida, true, texto);
+      assert.equal(r.valor, esperado, texto);
+      assert.equal(r.incompleta, false, texto);
+    }
+  });
+
+  test("dos dígitos fuera de 1,0 a 7,0 se rechazan con el mensaje de rango", () => {
+    for (const texto of ["71", "79", "80", "99", "00", "05", "09", "0"]) {
+      const r = c.validarNota(texto);
+      assert.equal(r.valida, false, texto);
+      assert.equal(r.valor, null, texto);
+      assert.equal(r.mensaje, c.MENSAJE_RANGO, texto);
+    }
+  });
+
+  test("tres o más dígitos sin separador se rechazan", () => {
+    for (const texto of ["675", "100", "5500"]) {
+      const r = c.validarNota(texto);
+      assert.equal(r.valida, false, texto);
+      assert.equal(r.mensaje, c.MENSAJE_RANGO, texto);
+    }
+  });
+
+  test("con separador y un dígito todo sigue igual tras aceptar dos dígitos", () => {
+    assert.equal(c.validarNota("6,7").valor, 67);
+    assert.equal(c.validarNota("6.7").valor, 67);
+    assert.equal(c.validarNota("6").valor, 60);
+    assert.equal(c.validarNota("55").valor, c.validarNota("5,5").valor);
+  });
+
   test("'4,' está incompleta (todavía escribiendo)", () => {
     const r = c.validarNota("4,");
     assert.equal(r.valida, false);

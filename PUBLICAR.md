@@ -135,6 +135,7 @@ Tiene que descargar el instalador nuevo.
 | `v1.0` | Versión antigua en Python (portable). Obsoleta. |
 | `v2.0.0` | Primera versión con instalador para Windows (Electron + SQLite). Su etiqueta apunta a un commit anterior a las correcciones: el código fuente del release no coincide exactamente con su instalador. |
 | `v2.0.1` | Igual que 2.0.0, más las correcciones de [REVISION-ERRORES.md](REVISION-ERRORES.md), el README nuevo y las guías. El código del release y el instalador coinciden. |
+| `v2.1.0` | Las notas y el examen aceptan dos dígitos sin separador: `55` se lee como 5,5 (`71` o `80` son inválidos). |
 
 Para las próximas versiones, sigue los pasos de arriba: primero commit y push a `main`, y después el release. Así la etiqueta apunta siempre al mismo código del instalador.
 

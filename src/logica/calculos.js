@@ -25,6 +25,7 @@ const MENSAJE_PORCENTAJES = "Los porcentajes deben sumar 100%.";
 
 /**
  * Valida lo que el usuario escribe en una casilla de nota. Acepta coma o punto.
+ * También acepta exactamente dos dígitos sin separador: "55" se lee como 5,5 ("71" o "80" quedan fuera de rango).
  * Devuelve { valida, valor, mensaje, incompleta }:
  *   - valor: la nota en décimas, o null si la casilla quedó vacía (evaluación pendiente).
  *   - incompleta: true si el usuario todavía está escribiendo (ej: "4,"), para no mostrar el error aún.
@@ -39,6 +40,14 @@ function validarNota(texto) {
   }
   if (/^\d+[.,]\d{2,}$/.test(limpio)) {
     return { valida: false, valor: null, mensaje: MENSAJE_DECIMALES, incompleta: false };
+  }
+  // Dos dígitos sin separador: el primero es el entero y el segundo el decimal ("55" -> 55 décimas = 5,5)
+  if (/^\d{2}$/.test(limpio)) {
+    const valor = Number(limpio);
+    if (valor < NOTA_MINIMA || valor > NOTA_MAXIMA) {
+      return { valida: false, valor: null, mensaje: MENSAJE_RANGO, incompleta: false };
+    }
+    return { valida: true, valor, mensaje: "", incompleta: false };
   }
   const partes = /^(\d+)(?:[.,](\d))?$/.exec(limpio);
   if (!partes) {
