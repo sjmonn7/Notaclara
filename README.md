@@ -150,7 +150,7 @@ Windows avisa con todos los programas que no tienen un certificado de firma, que
 <div align="center">
 
 Hecho con 💙 por **Simon Macías, Fabián Rojas, Natalia Sandoval y Berhane Castro**<br />
-<sub>Estudiantes de Analista Programador · INACAP Sede Temuco</sub>
+<sub>Estudiantes de Ingenieria en informatica · INACAP Sede Temuco</sub>
 
 </div>
 
